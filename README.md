@@ -43,6 +43,21 @@ It has been tested on Ubuntu 16.04(ROS Kinetic) and 18.04(ROS Melodic). Take Ubu
 
 ```
   sudo apt-get install libarmadillo-dev ros-melodic-nlopt
+```
+
+To simulate the depth camera, we use a simulator based on CUDA Toolkit. Please install it first following the [instruction of CUDA](https://developer.nvidia.com/zh-cn/cuda-toolkit). 
+
+After successful installation, in the **local_sensing** package in **uav_simulator**, remember to change the 'arch' and 'code' flags in CMakelist.txt according to your graphics card devices. You can check the right code [here](https://github.com/tpruvot/ccminer/wiki/Compatibility). For example:
+
+```
+  set(CUDA_NVCC_FLAGS 
+    -gencode arch=compute_61,code=sm_61;
+  ) 
+```
+
+Finally, clone and compile our package:
+
+```
   cd ${YOUR_WORKSPACE_PATH}/src
   git clone https://github.com/HKUST-Aerial-Robotics/FUEL.git
   cd ../ 
@@ -58,7 +73,7 @@ and start a simulation (run in a new terminals):
 ```
   source devel/setup.bash && roslaunch exploration_manager exploration.launch
 ```
-You will find a cluttered scene to be explored and the drone in ```Rviz```. You can trigger the exploration to start by the ```2D Nav Goal``` tool. A sample simulation is shown in the figure. The unknown obstacles are shown in grey, while the frontiers are shown as colorful voxels. The planned and executed trajectories are also displayed.
+You will find a cluttered scene to be explored (20m x 12m x 2m) and the drone in ```Rviz```. You can trigger the exploration to start by the ```2D Nav Goal``` tool. A sample simulation is shown in the figure. The unknown obstacles are shown in grey, while the frontiers are shown as colorful voxels. The planned and executed trajectories are also displayed.
 
  <p id="demo1" align="center">
   <img src="files/5.gif" width = "500" height = "418"/>
