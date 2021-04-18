@@ -12,6 +12,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TransformStamped.h>
 
 #include <memory>
 #include <random>
@@ -21,6 +22,7 @@ using std::normal_distribution;
 using std::default_random_engine;
 
 namespace fast_planner {
+
 class SDFMap;
 
 class MapROS {
@@ -31,10 +33,21 @@ public:
   void init();
 
 private:
+  static std::tuple<ros::Time, Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  static std::tuple<ros::Time, Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::TransformStamped::ConstPtr &msg);
+
   void depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::PoseStampedConstPtr& pose);
   void cloudPoseCallback(const sensor_msgs::PointCloud2ConstPtr& msg,
                          const geometry_msgs::PoseStampedConstPtr& pose);
+  void semanticsDepthPoseCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
+                               const sensor_msgs::ImageConstPtr& depthMsg,
+                               const geometry_msgs::PoseStampedConstPtr& poseMsg);
+  void depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
+                         const geometry_msgs::TransformStampedConstPtr& pose);
+  void semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
+                                  const sensor_msgs::ImageConstPtr& depthMsg,
+                                  const geometry_msgs::TransformStampedConstPtr& poseMsg);
   void updateESDFCallback(const ros::TimerEvent& /*event*/);
   void visCallback(const ros::TimerEvent& /*event*/);
 
@@ -52,17 +65,36 @@ private:
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
       SyncPolicyImagePose;
   typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImagePose>> SynchronizerImagePose;
+
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, geometry_msgs::PoseStamped>
+        SyncPolicySemanticsImagePose;
+  typedef shared_ptr<message_filters::Synchronizer<SyncPolicySemanticsImagePose>> SynchronizerSemanticsImagePose;
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::TransformStamped>
+            SyncPolicyImageTransform;
+    typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImageTransform>> SynchronizerImageTransform;
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, geometry_msgs::TransformStamped>
+            SyncPolicySemanticsImageTransform;
+    typedef shared_ptr<message_filters::Synchronizer<SyncPolicySemanticsImageTransform>> SynchronizerSemanticsImageTransform;
+
+
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2,
-                                                          geometry_msgs::PoseStamped>
-      SyncPolicyCloudPose;
+                                                          geometry_msgs::PoseStamped> SyncPolicyCloudPose;
   typedef shared_ptr<message_filters::Synchronizer<SyncPolicyCloudPose>> SynchronizerCloudPose;
 
   ros::NodeHandle node_;
   shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> depth_sub_;
+  shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> semantic_sub_;
   shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> cloud_sub_;
   shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> pose_sub_;
-  SynchronizerImagePose sync_image_pose_;
+  shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped>> transform_sub_;
+
+    SynchronizerImagePose sync_image_pose_;
   SynchronizerCloudPose sync_cloud_pose_;
+  SynchronizerSemanticsImagePose sync_semantics_image_pose_;
+    SynchronizerImageTransform sync_image_transform_;
+    SynchronizerSemanticsImageTransform sync_semantics_image_transform_;
 
   ros::Publisher map_local_pub_, map_local_inflate_pub_, esdf_pub_, map_all_pub_, unknown_pub_,
       update_range_pub_, depth_pub_;
@@ -80,6 +112,8 @@ private:
   double visualization_truncate_height_, visualization_truncate_low_;
   bool show_esdf_time_, show_occ_time_;
   bool show_all_map_;
+  bool do_semantics_;
+  bool do_transform_;
 
   // data
   // flags of map state

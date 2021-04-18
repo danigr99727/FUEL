@@ -70,6 +70,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   md_->flag_visited_ = vector<char>(buffer_size, -1);
   md_->tmp_buffer1_ = vector<double>(buffer_size, 0);
   md_->tmp_buffer2_ = vector<double>(buffer_size, 0);
+  md_->semantics_buffer_ = vector<uint8_t>(buffer_size, 0);
   md_->raycast_num_ = 0;
   md_->reset_updated_box_ = true;
   md_->update_min_ = md_->update_max_ = Eigen::Vector3d(0, 0, 0);
@@ -254,6 +255,97 @@ void SDFMap::setCacheOccupancy(const int& adr, const int& occ) {
   //   md_->count_hit_[adr] += 1;
   // if (md_->count_hit_and_miss_[adr] == 1)
   //   md_->cache_voxel_.push(adr);
+}
+
+void SDFMap::setSemantics(const int& adr, const uint32_t& label){
+    md_->semantics_buffer_[adr] = static_cast<uint8_t>(label);
+}
+
+void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, const int& point_num,
+                                const Eigen::Vector3d& camera_pos){
+    if (point_num == 0) return;
+    md_->raycast_num_ += 1;
+
+    Eigen::Vector3d update_min = camera_pos;
+    Eigen::Vector3d update_max = camera_pos;
+    if (md_->reset_updated_box_) {
+        md_->update_min_ = camera_pos;
+        md_->update_max_ = camera_pos;
+        md_->reset_updated_box_ = false;
+    }
+
+    Eigen::Vector3d pt_w, tmp;
+    Eigen::Vector3i idx;
+    int vox_adr;
+    double length;
+    for (int i = 0; i < point_num; ++i) {
+        auto& pt = points.points[i];
+        pt_w << pt.x, pt.y, pt.z;
+        int tmp_flag;
+        // Set flag for projected point
+        if (!isInMap(pt_w)) {
+            // Find closest point in map and set free
+            pt_w = closetPointInMap(pt_w, camera_pos);
+            length = (pt_w - camera_pos).norm();
+            if (length > mp_->max_ray_length_)
+                pt_w = (pt_w - camera_pos) / length * mp_->max_ray_length_ + camera_pos;
+            if (pt_w[2] < 0.2) continue;
+            tmp_flag = 0;
+        } else {
+            length = (pt_w - camera_pos).norm();
+            if (length > mp_->max_ray_length_) {
+                pt_w = (pt_w - camera_pos) / length * mp_->max_ray_length_ + camera_pos;
+                if (pt_w[2] < 0.2) continue;
+                tmp_flag = 0;
+            } else
+                tmp_flag = 1;
+        }
+        posToIndex(pt_w, idx);
+        vox_adr = toAddress(idx);
+        setCacheOccupancy(vox_adr, tmp_flag);
+        setSemantics(vox_adr, pt.label);
+        for (int k = 0; k < 3; ++k) {
+            update_min[k] = min(update_min[k], pt_w[k]);
+            update_max[k] = max(update_max[k], pt_w[k]);
+        }
+        // Raycasting between camera center and point
+        if (md_->flag_rayend_[vox_adr] == md_->raycast_num_)
+            continue;
+        else
+            md_->flag_rayend_[vox_adr] = md_->raycast_num_;
+
+        caster_->input(pt_w, camera_pos);
+        caster_->nextId(idx);
+        while (caster_->nextId(idx))
+            setCacheOccupancy(toAddress(idx), 0);
+    }
+
+    Eigen::Vector3d bound_inf(mp_->local_bound_inflate_, mp_->local_bound_inflate_, 0);
+    posToIndex(update_max + bound_inf, md_->local_bound_max_);
+    posToIndex(update_min - bound_inf, md_->local_bound_min_);
+    boundIndex(md_->local_bound_min_);
+    boundIndex(md_->local_bound_max_);
+    mr_->local_updated_ = true;
+
+    // Bounding box for subsequent updating
+    for (int k = 0; k < 3; ++k) {
+        md_->update_min_[k] = min(update_min[k], md_->update_min_[k]);
+        md_->update_max_[k] = max(update_max[k], md_->update_max_[k]);
+    }
+
+    while (!md_->cache_voxel_.empty()) {
+        int adr = md_->cache_voxel_.front();
+        md_->cache_voxel_.pop();
+        double log_odds_update =
+                md_->count_hit_[adr] >= md_->count_miss_[adr] ? mp_->prob_hit_log_ : mp_->prob_miss_log_;
+        md_->count_hit_[adr] = md_->count_miss_[adr] = 0;
+        if (md_->occupancy_buffer_[adr] < mp_->clamp_min_log_ - 1e-3)
+            md_->occupancy_buffer_[adr] = mp_->min_occupancy_log_;
+
+        md_->occupancy_buffer_[adr] = std::min(
+                std::max(md_->occupancy_buffer_[adr] + log_odds_update, mp_->clamp_min_log_),
+                mp_->clamp_max_log_);
+    }
 }
 
 void SDFMap::inputPointCloud(

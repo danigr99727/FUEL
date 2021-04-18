@@ -40,8 +40,8 @@ link_directories(${PCL_LIBRARY_DIRS})
 
 
 add_library( plan_env 
-    src/sdf_map.cpp 
-    src/obj_predictor.cpp 
+    src/sdf_map.cpp
+    src/obj_predictor.cpp
     src/edt_environment.cpp 
     src/raycast.cpp
     src/map_ros.cpp
@@ -52,7 +52,16 @@ target_link_libraries( plan_env
     )  
 
 add_executable(obj_generator
-    src/obj_generator.cpp 
-    )
+    src/obj_generator.cpp
+        src/raycast.cpp)
 target_link_libraries(obj_generator 
     ${catkin_LIBRARIES})
+
+add_executable(test_sdf
+        src/test_sdf_map.cpp
+        src/sdf_map.cpp
+        src/map_ros.cpp
+        src/raycast.cpp)
+target_link_libraries(test_sdf
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES})

@@ -10,6 +10,17 @@
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find plan_manage)/config/traj.rviz" />
     <node pkg="tf" type="static_transform_publisher" name="tf_53" args="0 0 0 0 0 0 world navigation 100" />
 
+  <!-- use simulator -->
+  <include file="$(find exploration_manager)/launch/simulator.xml">
+    <arg name="map_size_x_" value="$(arg map_size_x)"/>
+    <arg name="map_size_y_" value="$(arg map_size_y)"/>
+    <arg name="map_size_z_" value="$(arg map_size_z)"/>
+
+    <arg name="odometry_topic" value="$(arg odom_topic)" />
+    <arg name="c_num" value="0"/>
+    <arg name="p_num" value="130"/>
+  </include>
+
   <!-- main algorithm params -->
   <include file="$(find exploration_manager)/launch/algorithm.xml">
 
@@ -60,15 +71,6 @@
     <param name="waypoint_type" value="point"/>    
   </node>
 
-  <!-- use simulator -->
-  <include file="$(find exploration_manager)/launch/simulator.xml">
-    <arg name="map_size_x_" value="$(arg map_size_x)"/>
-    <arg name="map_size_y_" value="$(arg map_size_y)"/>
-    <arg name="map_size_z_" value="$(arg map_size_z)"/>
 
-    <arg name="odometry_topic" value="$(arg odom_topic)" />
-    <arg name="c_num" value="0"/>
-    <arg name="p_num" value="130"/>
-  </include>
 
 </launch>
