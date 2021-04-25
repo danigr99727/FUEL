@@ -265,7 +265,6 @@ void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, c
                                 const Eigen::Vector3d& camera_pos){
     if (point_num == 0) return;
     md_->raycast_num_ += 1;
-
     Eigen::Vector3d update_min = camera_pos;
     Eigen::Vector3d update_max = camera_pos;
     if (md_->reset_updated_box_) {

@@ -33,8 +33,8 @@ public:
   void init();
 
 private:
-  static std::tuple<ros::Time, Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
-  static std::tuple<ros::Time, Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::TransformStamped::ConstPtr &msg);
+  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::TransformStamped::ConstPtr &msg);
 
   void depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::PoseStampedConstPtr& pose);
@@ -58,9 +58,11 @@ private:
   void publishUnknown();
   void publishDepth();
 
-  void proessDepthImage();
+  void processDepthImage();
 
-  SDFMap* map_;
+  std::map<int, Eigen::Vector3i> get_color_map(int N);
+    std::map<int, Eigen::Vector3i> color_map_;
+    SDFMap* map_;
   // may use ExactTime?
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
       SyncPolicyImagePose;
@@ -97,7 +99,7 @@ private:
     SynchronizerSemanticsImageTransform sync_semantics_image_transform_;
 
   ros::Publisher map_local_pub_, map_local_inflate_pub_, esdf_pub_, map_all_pub_, unknown_pub_,
-      update_range_pub_, depth_pub_;
+      update_range_pub_, depth_pub_, semantic_map_pub_, semantic_color_map_pub_;
   ros::Timer esdf_timer_, vis_timer_;
 
   // params, depth projection
@@ -114,7 +116,8 @@ private:
   bool show_all_map_;
   bool do_semantics_;
   bool do_transform_;
-
+  int image_rows_;
+  int image_cols_;
   // data
   // flags of map state
   bool local_updated_, esdf_need_update_;
@@ -122,11 +125,13 @@ private:
   Eigen::Vector3d camera_pos_;
   Eigen::Quaterniond camera_q_;
   unique_ptr<cv::Mat> depth_image_;
+  unique_ptr<cv::Mat> semantic_image_;
   vector<Eigen::Vector3d> proj_points_;
   int proj_points_cnt;
   double fuse_time_, esdf_time_, max_fuse_time_, max_esdf_time_;
   int fuse_num_, esdf_num_;
   pcl::PointCloud<pcl::PointXYZ> point_cloud_;
+  pcl::PointCloud<pcl::PointXYZL> semantic_point_cloud_;
 
   normal_distribution<double> rand_noise_;
   default_random_engine eng_;
