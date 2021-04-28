@@ -35,12 +35,12 @@ void MapROS::init() {
   node_.param("map_ros/show_occ_time", show_occ_time_, false);
   node_.param("map_ros/show_esdf_time", show_esdf_time_, false);
   node_.param("map_ros/show_all_map", show_all_map_, false);
-  node_.param("map_ros/do_semantics", do_semantics_, false);
+  node_.param("map_ros/do_semantics", do_semantics_, true);
   node_.param("map_ros/do_transform", do_transform_, true);
   node_.param("map_ros/input_rows", input_rows_, 480);
   node_.param("map_ros/input_cols", input_cols_, 640);
-  node_.param("map_ros/image_rows", image_rows_, 449);
-  node_.param("map_ros/image_cols", image_cols_, 577);
+  node_.param("map_ros/image_rows", image_rows_, 480);
+  node_.param("map_ros/image_cols", image_cols_, 640);
 
   node_.param("map_ros/frame_id", frame_id_, string("world"));
 
@@ -142,7 +142,7 @@ void MapROS::init() {
 
 std::map<int, Eigen::Vector3i> MapROS::get_color_map(int N=256) {
 // Return Color Map in PASCAL VOC format
-    auto bitget = [](int byte_val, uint8_t idx){return (byte_val & (1<<idx)) !=0;};
+    auto bitget = [](uint32_t byte_val, uint8_t idx){return (byte_val & (1<<idx)) !=0;};
     uint8_t r, g, b;
     std::map<int, Eigen::Vector3i> color_map;
     for(int i=0 ; i<N; i++){
@@ -241,12 +241,13 @@ void MapROS::depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
   cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
   if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
     (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-  cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+  //cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+  cv_ptr->image.copyTo(*depth_image_);
 
   auto t1 = ros::Time::now();
 
   // generate point cloud, update map
-    processDepthImage();
+  processDepthImage();
   map_->inputPointCloud(point_cloud_, proj_points_cnt, camera_pos_);
   if (local_updated_) {
     map_->clearAndInflateLocalMap();
@@ -296,7 +297,8 @@ void MapROS::depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
     if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
         (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-    cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+    //cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+    cv_ptr->image.copyTo(*depth_image_);
 
     auto t1 = ros::Time::now();
 
@@ -334,7 +336,8 @@ void MapROS::semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& s
 
     if (depthMsg->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
         (depth_cv_ptr->image).convertTo(depth_cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-    cv::resize(depth_cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+    //cv::resize(depth_cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
+    depth_cv_ptr->image.copyTo(*depth_image_);
 
     auto t1 = ros::Time::now();
 
@@ -360,10 +363,10 @@ void MapROS::processDepthImage() {
   proj_points_cnt = 0;
 
   uint16_t* row_ptr;
-  uint16_t* semantic_row_ptr;
+  uint8_t* semantic_row_ptr;
   int cols = depth_image_->cols;
   int rows = depth_image_->rows;
-  double depth, uu, vv;
+  double depth;
   Eigen::Matrix3d camera_r = camera_q_.toRotationMatrix();
   Eigen::Vector3d pt_cur, pt_world;
   const double inv_factor = 1.0 / k_depth_scaling_factor_;
@@ -371,7 +374,7 @@ void MapROS::processDepthImage() {
     row_ptr = depth_image_->ptr<uint16_t>(v) + depth_filter_margin_;
     if(do_semantics_)
     {
-        semantic_row_ptr = semantic_image_->ptr<uint16_t>(v);
+        semantic_row_ptr = semantic_image_->ptr<uint8_t>(v);
     }
     for (int u = depth_filter_margin_; u < cols - depth_filter_margin_; u += skip_pixel_) {
 
@@ -439,7 +442,7 @@ void MapROS::publishMapAll() {
           RGBLpt.z = pos(2);
           if(do_semantics_){
               RGBLpt.label = map_->md_->semantics_buffer_[map_->toAddress(x,y,z)];
-              rgb = color_map_[RGBLpt.label];
+              rgb = color_map_[static_cast<int>(RGBLpt.label)];
               RGBLpt.r = rgb(0);
               RGBLpt.g = rgb(1);
               RGBLpt.b = rgb(2);
@@ -531,18 +534,39 @@ void MapROS::publishMapLocal() {
 
 
 void MapROS::publishDepth() {
-  pcl::PointXYZ pt;
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  for (int i = 0; i < proj_points_cnt; ++i) {
-    cloud.push_back(point_cloud_.points[i]);
+  if(!do_semantics_){
+      pcl::PointCloud<pcl::PointXYZ> cloud;
+      for (int i = 0; i < proj_points_cnt; ++i) {
+        cloud.push_back(point_cloud_.points[i]);
+      }
+      cloud.width = cloud.points.size();
+      cloud.height = 1;
+      cloud.is_dense = true;
+      cloud.header.frame_id = frame_id_;
+      sensor_msgs::PointCloud2 cloud_msg;
+      pcl::toROSMsg(cloud, cloud_msg);
+      depth_pub_.publish(cloud_msg);
   }
-  cloud.width = cloud.points.size();
-  cloud.height = 1;
-  cloud.is_dense = true;
-  cloud.header.frame_id = frame_id_;
-  sensor_msgs::PointCloud2 cloud_msg;
-  pcl::toROSMsg(cloud, cloud_msg);
-  depth_pub_.publish(cloud_msg);
+  else{
+      pcl::PointXYZRGB pt;
+      Eigen::Vector3i rgb;
+      pcl::PointCloud<pcl::PointXYZRGB> cloud;
+      for (int i = 0; i < proj_points_cnt; ++i) {
+          rgb = color_map_[static_cast<int>(semantic_point_cloud_.points[i].label)];
+          pcl::copyPoint(semantic_point_cloud_.points[i], pt);
+          pt.r = rgb(0);
+          pt.g = rgb(1);
+          pt.b = rgb(2);
+          cloud.push_back(pt);
+      }
+      cloud.width = cloud.points.size();
+      cloud.height = 1;
+      cloud.is_dense = true;
+      cloud.header.frame_id = frame_id_;
+      sensor_msgs::PointCloud2 cloud_msg;
+      pcl::toROSMsg(cloud, cloud_msg);
+      depth_pub_.publish(cloud_msg);
+  }
 }
 
 void MapROS::publishUpdateRange() {

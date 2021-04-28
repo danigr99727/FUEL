@@ -70,7 +70,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   md_->flag_visited_ = vector<char>(buffer_size, -1);
   md_->tmp_buffer1_ = vector<double>(buffer_size, 0);
   md_->tmp_buffer2_ = vector<double>(buffer_size, 0);
-  md_->semantics_buffer_ = vector<uint8_t>(buffer_size, 0);
+  md_->semantics_buffer_ = vector<uint32_t>(buffer_size, 0);
   md_->raycast_num_ = 0;
   md_->reset_updated_box_ = true;
   md_->update_min_ = md_->update_max_ = Eigen::Vector3d(0, 0, 0);
@@ -258,7 +258,7 @@ void SDFMap::setCacheOccupancy(const int& adr, const int& occ) {
 }
 
 void SDFMap::setSemantics(const int& adr, const uint32_t& label){
-    md_->semantics_buffer_[adr] = static_cast<uint8_t>(label);
+    md_->semantics_buffer_[adr] = label;
 }
 
 void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, const int& point_num,
