@@ -36,16 +36,19 @@ void MapROS::init() {
   node_.param("map_ros/show_esdf_time", show_esdf_time_, false);
   node_.param("map_ros/show_all_map", show_all_map_, false);
   node_.param("map_ros/do_semantics", do_semantics_, false);
-  node_.param("map_ros/do_semantics", do_transform_, true);
+  node_.param("map_ros/do_transform", do_transform_, true);
+  node_.param("map_ros/input_rows", input_rows_, 480);
+  node_.param("map_ros/input_cols", input_cols_, 640);
   node_.param("map_ros/image_rows", image_rows_, 449);
   node_.param("map_ros/image_cols", image_cols_, 577);
 
   node_.param("map_ros/frame_id", frame_id_, string("world"));
 
-  color_map_ = get_color_map(40);
+  color_map_ = get_color_map(256);
 
-  proj_points_.resize(640 * 480 / (skip_pixel_ * skip_pixel_));
-  point_cloud_.points.resize(640 * 480 / (skip_pixel_ * skip_pixel_));
+  proj_points_.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
+  point_cloud_.points.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
+  semantic_point_cloud_.points.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
 
   proj_points_cnt = 0;
 
@@ -58,6 +61,7 @@ void MapROS::init() {
   fuse_num_ = 0;
   esdf_num_ = 0;
   depth_image_.reset(new cv::Mat);
+  semantic_image_.reset(new cv::Mat);
 
   rand_noise_ = normal_distribution<double>(0, 0.1);
   random_device rd;
@@ -99,11 +103,6 @@ void MapROS::init() {
               MapROS::SyncPolicyImageTransform(100), *depth_sub_, *transform_sub_));
       sync_image_transform_->registerCallback(boost::bind(&MapROS::depthTransformCallback, this, _1, _2));
   }
-  else if (do_semantics_ && !do_transform_){
-      sync_semantics_image_pose_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImagePose>(
-              MapROS::SyncPolicySemanticsImagePose(100), *semantic_sub_,*depth_sub_, *pose_sub_));
-      sync_semantics_image_pose_->registerCallback(boost::bind(&MapROS::semanticsDepthPoseCallback, this, _1, _2, _3));
-  }
   else if (!do_semantics_ && !do_transform_){
       sync_image_pose_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImagePose>(
               MapROS::SyncPolicyImagePose(100), *depth_sub_, *pose_sub_));
@@ -141,18 +140,18 @@ void MapROS::init() {
     cmap = cmap / 255.0 if normalized else cmap
     return cmap   */
 
-std::map<int, Eigen::Vector3i> MapROS::get_color_map(int N=40) {
+std::map<int, Eigen::Vector3i> MapROS::get_color_map(int N=256) {
 // Return Color Map in PASCAL VOC format
-    auto bitget = [](uint8_t byte_val, uint8_t idx){return (byte_val & (1<<idx)) !=0;};
-
+    auto bitget = [](int byte_val, uint8_t idx){return (byte_val & (1<<idx)) !=0;};
+    uint8_t r, g, b;
     std::map<int, Eigen::Vector3i> color_map;
     for(int i=0 ; i<N; i++){
-        int r, g, b = 0;
+        r = 0; g = 0; b = 0;
         int c = i;
         for(uint8_t j = 0; j<8; j++){
-            r = r | (bitget(c, 0) << (7 - j));
-            g = g | (bitget(c, 1) << (7 - j));
-            b = b | (bitget(c, 2) << (7 - j));
+            r = r | (bitget(c, 0) << 7 - j);
+            g = g | (bitget(c, 1) << 7 - j);
+            b = b | (bitget(c, 2) << 7 - j);
             c = c >> 3;
         }
         color_map.insert(std::make_pair(i, Eigen::Vector3i(r, g, b)));
@@ -238,10 +237,11 @@ void MapROS::depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
 
   camera_q_ = Eigen::Quaterniond(pose->pose.orientation.w, pose->pose.orientation.x,
                                  pose->pose.orientation.y, pose->pose.orientation.z);
+
   cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
   if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
     (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-  cv_ptr->image.copyTo(*depth_image_);
+  cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
 
   auto t1 = ros::Time::now();
 
@@ -286,42 +286,6 @@ void MapROS::cloudPoseCallback(const sensor_msgs::PointCloud2ConstPtr& msg,
   }
 }
 
-void MapROS::semanticsDepthPoseCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
-                                        const sensor_msgs::ImageConstPtr& depthMsg,
-                                        const geometry_msgs::PoseStampedConstPtr& poseMsg){
-    camera_pos_(0) = poseMsg->pose.position.x;
-    camera_pos_(1) = poseMsg->pose.position.y;
-    camera_pos_(2) = poseMsg->pose.position.z;
-    if (!map_->isInMap(camera_pos_))  // exceed mapped region
-        return;
-
-    camera_q_ = Eigen::Quaterniond(poseMsg->pose.orientation.w, poseMsg->pose.orientation.x,
-                                   poseMsg->pose.orientation.y, poseMsg->pose.orientation.z);
-    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(depthMsg, depthMsg->encoding);
-    if (depthMsg->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
-        (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-    cv_ptr->image.copyTo(*depth_image_);
-
-    auto t1 = ros::Time::now();
-
-    // generate point cloud, update map
-    processDepthImage();
-    map_->inputSemanticCloud(semantic_point_cloud_, proj_points_cnt, camera_pos_);
-    if (local_updated_) {
-        map_->clearAndInflateLocalMap();
-        esdf_need_update_ = true;
-        local_updated_ = false;
-    }
-
-    auto t2 = ros::Time::now();
-    fuse_time_ += (t2 - t1).toSec();
-    max_fuse_time_ = max(max_fuse_time_, (t2 - t1).toSec());
-    fuse_num_ += 1;
-    if (show_occ_time_)
-        ROS_WARN("Fusion t: cur: %lf, avg: %lf, max: %lf", (t2 - t1).toSec(), fuse_time_ / fuse_num_,
-                 max_fuse_time_);
-}
-
 void MapROS::depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
                                const geometry_msgs::TransformStampedConstPtr& pose) {
     std::tie(camera_pos_, camera_q_) = PoseCallback(pose);
@@ -332,7 +296,7 @@ void MapROS::depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
     cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(img, img->encoding);
     if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
         (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-    cv_ptr->image.copyTo(*depth_image_);
+    cv::resize(cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
 
     auto t1 = ros::Time::now();
 
@@ -364,12 +328,13 @@ void MapROS::semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& s
     if (!map_->isInMap(camera_pos_))  // exceed mapped region
         return;
 
-    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(semanticsMsg, semanticsMsg->encoding);
-    cv_ptr->image.copyTo(*semantic_image_);
+    cv_bridge::CvImagePtr depth_cv_ptr = cv_bridge::toCvCopy(depthMsg, depthMsg->encoding);
+    cv_bridge::CvImagePtr semantics_cv_ptr = cv_bridge::toCvCopy(semanticsMsg, semanticsMsg->encoding);
+    semantics_cv_ptr->image.copyTo(*semantic_image_);
 
     if (depthMsg->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
-        (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
-    cv_ptr->image.copyTo(*depth_image_);
+        (depth_cv_ptr->image).convertTo(depth_cv_ptr->image, CV_16UC1, k_depth_scaling_factor_);
+    cv::resize(depth_cv_ptr->image, *depth_image_, cv::Size(image_rows_, image_cols_));
 
     auto t1 = ros::Time::now();
 
@@ -398,13 +363,16 @@ void MapROS::processDepthImage() {
   uint16_t* semantic_row_ptr;
   int cols = depth_image_->cols;
   int rows = depth_image_->rows;
-  double depth;
+  double depth, uu, vv;
   Eigen::Matrix3d camera_r = camera_q_.toRotationMatrix();
   Eigen::Vector3d pt_cur, pt_world;
   const double inv_factor = 1.0 / k_depth_scaling_factor_;
   for (int v = depth_filter_margin_; v < rows - depth_filter_margin_; v += skip_pixel_) {
     row_ptr = depth_image_->ptr<uint16_t>(v) + depth_filter_margin_;
-    semantic_row_ptr = semantic_image_->ptr<uint16_t>(v);
+    if(do_semantics_)
+    {
+        semantic_row_ptr = semantic_image_->ptr<uint16_t>(v);
+    }
     for (int u = depth_filter_margin_; u < cols - depth_filter_margin_; u += skip_pixel_) {
 
         depth = (*row_ptr) * inv_factor;
@@ -424,6 +392,10 @@ void MapROS::processDepthImage() {
       pt_cur(1) = (v - cy_) * depth / fy_;
       pt_cur(2) = depth;
       pt_world = camera_r * pt_cur + camera_pos_;
+
+      //uu = coord.x()*fx_/coord.z() + cx_;
+      //vv = coord.y()*fy_/coord.z() + cy_;
+      //const double depth_filter_tolerance = 0.1;
 
       if(!do_semantics_){
           auto& pt = point_cloud_.points[proj_points_cnt++];
@@ -448,35 +420,35 @@ void MapROS::processDepthImage() {
 void MapROS::publishMapAll() {
   pcl::PointXYZRGBL RGBLpt;
   pcl::PointXYZRGB RGBpt;
-  pcl::PointXYZL Lpt;
+  //pcl::PointXYZL Lpt;
   pcl::PointXYZ pt;
   Eigen::Vector3i rgb;
   pcl::PointCloud<pcl::PointXYZ> cloud1;
   pcl::PointCloud<pcl::PointXYZRGB> rgbSemanticCloud;
-  pcl::PointCloud<pcl::PointXYZL> semanticCloud;
+  //pcl::PointCloud<pcl::PointXYZL> semanticCloud;
   for (int x = map_->mp_->box_min_(0) /* + 1 */; x < map_->mp_->box_max_(0); ++x)
     for (int y = map_->mp_->box_min_(1) /* + 1 */; y < map_->mp_->box_max_(1); ++y)
       for (int z = map_->mp_->box_min_(2) /* + 1 */; z < map_->mp_->box_max_(2); ++z) {
         if (map_->md_->occupancy_buffer_[map_->toAddress(x, y, z)] > map_->mp_->min_occupancy_log_) {
           Eigen::Vector3d pos;
           map_->indexToPos(Eigen::Vector3i(x, y, z), pos);
-          if (pos(2) > visualization_truncate_height_) continue;
-          if (pos(2) < visualization_truncate_low_) continue;
+          //if (pos(2) > visualization_truncate_height_) continue;
+          //if (pos(2) < visualization_truncate_low_) continue;
           RGBLpt.x = pos(0);
           RGBLpt.y = pos(1);
           RGBLpt.z = pos(2);
-          RGBLpt.label = map_->md_->semantics_buffer_[map_->toAddress(x,y,z)];
-          rgb = color_map_[RGBLpt.label];
-          RGBLpt.r = rgb(0);
-          RGBLpt.g = rgb(1);
-          RGBLpt.b = rgb(2);
-
-          pcl::copyPoint(RGBLpt, RGBpt);
-          //pcl::copyPoint(RGBLpt, Lpt);
+          if(do_semantics_){
+              RGBLpt.label = map_->md_->semantics_buffer_[map_->toAddress(x,y,z)];
+              rgb = color_map_[RGBLpt.label];
+              RGBLpt.r = rgb(0);
+              RGBLpt.g = rgb(1);
+              RGBLpt.b = rgb(2);
+              pcl::copyPoint(RGBLpt, RGBpt);
+              rgbSemanticCloud.push_back(RGBpt);
+              //pcl::copyPoint(RGBLpt, Lpt);
+              //semanticCloud.push_back(Lpt);
+          }
           pcl::copyPoint(RGBLpt, pt);
-
-          rgbSemanticCloud.push_back(RGBpt);
-          //semanticCloud.push_back(Lpt);
           cloud1.push_back(pt);
         }
       }
@@ -485,17 +457,18 @@ void MapROS::publishMapAll() {
   cloud1.is_dense = true;
   cloud1.header.frame_id = frame_id_;
 
-  rgbSemanticCloud.width = rgbSemanticCloud.points.size();
-  rgbSemanticCloud.height = 1;
-  rgbSemanticCloud.is_dense = true;
-  rgbSemanticCloud.header.frame_id = frame_id_;
-
   sensor_msgs::PointCloud2 cloud_msg;
   pcl::toROSMsg(cloud1, cloud_msg);
   map_all_pub_.publish(cloud_msg);
-  pcl::toROSMsg(rgbSemanticCloud, cloud_msg);
-  semantic_color_map_pub_.publish(cloud_msg);
 
+  if(do_semantics_) {
+      rgbSemanticCloud.width = rgbSemanticCloud.points.size();
+      rgbSemanticCloud.height = 1;
+      rgbSemanticCloud.is_dense = true;
+      rgbSemanticCloud.header.frame_id = frame_id_;
+      pcl::toROSMsg(rgbSemanticCloud, cloud_msg);
+      semantic_color_map_pub_.publish(cloud_msg);
+  }
   // Output time and known volumn
   double time_now = (ros::Time::now() - map_start_time_).toSec();
   double known_volumn = 0;
@@ -530,8 +503,8 @@ void MapROS::publishMapLocal() {
           // Occupied cells
           Eigen::Vector3d pos;
           map_->indexToPos(Eigen::Vector3i(x, y, z), pos);
-          if (pos(2) > visualization_truncate_height_) continue;
-          if (pos(2) < visualization_truncate_low_) continue;
+          //if (pos(2) > visualization_truncate_height_) continue;
+          //if (pos(2) < visualization_truncate_low_) continue;
 
           pt.x = pos(0);
           pt.y = pos(1);
@@ -556,36 +529,6 @@ void MapROS::publishMapLocal() {
   map_local_inflate_pub_.publish(cloud_msg);
 }
 
-void MapROS::publishUnknown() {
-  pcl::PointXYZ pt;
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  Eigen::Vector3i min_cut = map_->md_->local_bound_min_;
-  Eigen::Vector3i max_cut = map_->md_->local_bound_max_;
-  map_->boundIndex(max_cut);
-  map_->boundIndex(min_cut);
-
-  for (int x = min_cut(0); x <= max_cut(0); ++x)
-    for (int y = min_cut(1); y <= max_cut(1); ++y)
-      for (int z = min_cut(2); z <= max_cut(2); ++z) {
-        if (map_->md_->occupancy_buffer_[map_->toAddress(x, y, z)] < map_->mp_->clamp_min_log_ - 1e-3) {
-          Eigen::Vector3d pos;
-          map_->indexToPos(Eigen::Vector3i(x, y, z), pos);
-          if (pos(2) > visualization_truncate_height_) continue;
-          if (pos(2) < visualization_truncate_low_) continue;
-          pt.x = pos(0);
-          pt.y = pos(1);
-          pt.z = pos(2);
-          cloud.push_back(pt);
-        }
-      }
-  cloud.width = cloud.points.size();
-  cloud.height = 1;
-  cloud.is_dense = true;
-  cloud.header.frame_id = frame_id_;
-  sensor_msgs::PointCloud2 cloud_msg;
-  pcl::toROSMsg(cloud, cloud_msg);
-  unknown_pub_.publish(cloud_msg);
-}
 
 void MapROS::publishDepth() {
   pcl::PointXYZ pt;

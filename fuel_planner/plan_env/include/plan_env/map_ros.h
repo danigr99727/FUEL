@@ -40,9 +40,6 @@ private:
                          const geometry_msgs::PoseStampedConstPtr& pose);
   void cloudPoseCallback(const sensor_msgs::PointCloud2ConstPtr& msg,
                          const geometry_msgs::PoseStampedConstPtr& pose);
-  void semanticsDepthPoseCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
-                               const sensor_msgs::ImageConstPtr& depthMsg,
-                               const geometry_msgs::PoseStampedConstPtr& poseMsg);
   void depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::TransformStampedConstPtr& pose);
   void semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
@@ -55,7 +52,6 @@ private:
   void publishMapLocal();
   void publishESDF();
   void publishUpdateRange();
-  void publishUnknown();
   void publishDepth();
 
   void processDepthImage();
@@ -67,10 +63,6 @@ private:
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
       SyncPolicyImagePose;
   typedef shared_ptr<message_filters::Synchronizer<SyncPolicyImagePose>> SynchronizerImagePose;
-
-  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, geometry_msgs::PoseStamped>
-        SyncPolicySemanticsImagePose;
-  typedef shared_ptr<message_filters::Synchronizer<SyncPolicySemanticsImagePose>> SynchronizerSemanticsImagePose;
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::TransformStamped>
             SyncPolicyImageTransform;
@@ -94,7 +86,6 @@ private:
 
     SynchronizerImagePose sync_image_pose_;
   SynchronizerCloudPose sync_cloud_pose_;
-  SynchronizerSemanticsImagePose sync_semantics_image_pose_;
     SynchronizerImageTransform sync_image_transform_;
     SynchronizerSemanticsImageTransform sync_semantics_image_transform_;
 
@@ -118,6 +109,8 @@ private:
   bool do_transform_;
   int image_rows_;
   int image_cols_;
+  int input_rows_;
+  int input_cols_;
   // data
   // flags of map state
   bool local_updated_, esdf_need_update_;
