@@ -35,6 +35,7 @@ public:
 private:
   static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &msg);
   static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const geometry_msgs::TransformStamped::ConstPtr &msg);
+  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> PoseCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
   void depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::PoseStampedConstPtr& pose);
@@ -42,9 +43,15 @@ private:
                          const geometry_msgs::PoseStampedConstPtr& pose);
   void depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::TransformStampedConstPtr& pose);
-  void semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
+    void commonPoseDepth(const sensor_msgs::ImageConstPtr& img);
+
+    void semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
                                   const sensor_msgs::ImageConstPtr& depthMsg,
                                   const geometry_msgs::TransformStampedConstPtr& poseMsg);
+  void semanticsDepthOdomCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
+                                  const sensor_msgs::ImageConstPtr& depthMsg,
+                                  const nav_msgs::OdometryConstPtr& odomMsg);
+
   void updateESDFCallback(const ros::TimerEvent& /*event*/);
   void visCallback(const ros::TimerEvent& /*event*/);
 
@@ -72,6 +79,9 @@ private:
             SyncPolicySemanticsImageTransform;
     typedef shared_ptr<message_filters::Synchronizer<SyncPolicySemanticsImageTransform>> SynchronizerSemanticsImageTransform;
 
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, nav_msgs::Odometry>
+            SyncPolicySemanticsImageOdom;
+    typedef shared_ptr<message_filters::Synchronizer<SyncPolicySemanticsImageOdom>> SynchronizerSemanticsImageOdom;
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2,
                                                           geometry_msgs::PoseStamped> SyncPolicyCloudPose;
@@ -82,10 +92,12 @@ private:
   shared_ptr<message_filters::Subscriber<sensor_msgs::Image>> semantic_sub_;
   shared_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> cloud_sub_;
   shared_ptr<message_filters::Subscriber<geometry_msgs::PoseStamped>> pose_sub_;
+  shared_ptr<message_filters::Subscriber<nav_msgs::Odometry>> odom_sub_;
   shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped>> transform_sub_;
 
     SynchronizerImagePose sync_image_pose_;
-  SynchronizerCloudPose sync_cloud_pose_;
+    SynchronizerSemanticsImageOdom sync_semantics_image_odom_;
+    SynchronizerCloudPose sync_cloud_pose_;
     SynchronizerImageTransform sync_image_transform_;
     SynchronizerSemanticsImageTransform sync_semantics_image_transform_;
 

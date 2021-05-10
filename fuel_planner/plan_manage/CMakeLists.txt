@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(plan_manage)
 
+set(AIRSIM_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/AirSim/)
+
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS "-std=c++11")
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
@@ -22,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   traj_utils
   active_perception
   cv_bridge
+  airsim_ros_pkgs
 )
 
 
@@ -33,6 +36,7 @@ catkin_package(
 include_directories(
   include
   SYSTEM
+  #${AIRSIM_ROOT}/ros/devel/include/
   ${catkin_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include
   ${EIGEN3_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
@@ -60,6 +64,8 @@ target_link_libraries(plan_manage ${catkin_LIBRARIES})
 
 add_executable(traj_server src/traj_server.cpp)
 target_link_libraries(traj_server ${catkin_LIBRARIES} -ldw)
+add_executable(airsim_traj_server src/airsim_traj_server.cpp)
+target_link_libraries(airsim_traj_server ${catkin_LIBRARIES} -ldw)
 # add_dependencies(traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # benchmark node
