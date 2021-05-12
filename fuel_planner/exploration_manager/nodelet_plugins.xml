@@ -1,0 +1,7 @@
+<library path="lib/libExplorationNodelet">
+    <class name="exploration_manager/ExplorationNodelet" type="fast_planner::ExplorationNodelet" base_class_type="nodelet::Nodelet">
+        <description>
+            Fast exploration nodelet.
+        </description>
+    </class>
+</library>

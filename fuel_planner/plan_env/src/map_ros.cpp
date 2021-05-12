@@ -92,8 +92,9 @@ void MapROS::init() {
       new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "/map_ros/posenot", 25));
   transform_sub_.reset(
             new message_filters::Subscriber<geometry_msgs::TransformStamped>(node_, "/map_ros/pose", 25));
+  odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/map_ros/TODO_ODOM", 25));
 
-  if (do_semantics_ && do_transform_){
+    if (do_semantics_ && do_transform_){
       sync_semantics_image_transform_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImageTransform>(
               MapROS::SyncPolicySemanticsImageTransform(100), *semantic_sub_,*depth_sub_, *transform_sub_));
       sync_semantics_image_transform_->registerCallback(boost::bind(&MapROS::semanticsDepthTransformCallback, this, _1, _2, _3));
@@ -252,7 +253,7 @@ std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback
 void MapROS::depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
                                const geometry_msgs::PoseStampedConstPtr& pose) {
   std::tie(camera_pos_, camera_q_) = PoseCallback(pose);
-  commonPoseDepth(img);
+    processDepthMsg(img);
 }
 
 
@@ -276,10 +277,10 @@ void MapROS::cloudPoseCallback(const sensor_msgs::PointCloud2ConstPtr& msg,
 void MapROS::depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
                                const geometry_msgs::TransformStampedConstPtr& pose) {
     std::tie(camera_pos_, camera_q_) = PoseCallback(pose);
-    commonPoseDepth(img);
+    processDepthMsg(img);
 }
 
-void MapROS::commonPoseDepth(const sensor_msgs::ImageConstPtr& img)
+void MapROS::processDepthMsg(const sensor_msgs::ImageConstPtr& img)
 {
     if (!map_->isInMap(camera_pos_))  // exceed mapped region
         return;
@@ -332,7 +333,7 @@ void MapROS::semanticsDepthOdomCallback(const sensor_msgs::ImageConstPtr& semant
     std::tie(camera_pos_, camera_q_) = PoseCallback(odomMsg);
     cv_bridge::CvImagePtr semantics_cv_ptr = cv_bridge::toCvCopy(semanticsMsg, semanticsMsg->encoding);
     semantics_cv_ptr->image.copyTo(*semantic_image_);
-    commonPoseDepth(depthMsg);
+    processDepthMsg(depthMsg);
 }
 
 void MapROS::processDepthImage() {

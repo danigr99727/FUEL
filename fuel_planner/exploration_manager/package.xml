@@ -78,11 +78,12 @@
   <exec_depend>plan_manage</exec_depend>
   <exec_depend>quadrotor_msgs</exec_depend>
   
-
-
-  <!-- The export tag contains other, unspecified, tags -->
+  <!--nodelet stuff-->
+  <build_depend>nodelet</build_depend>
+  <exec_depend>nodelet</exec_depend>
   <export>
-    <!-- Other tools can request additional information be placed here -->
-
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
   </export>
+  <!--nodelet stuff-->
+
 </package>

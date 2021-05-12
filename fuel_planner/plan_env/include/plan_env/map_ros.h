@@ -43,7 +43,7 @@ private:
                          const geometry_msgs::PoseStampedConstPtr& pose);
   void depthTransformCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::TransformStampedConstPtr& pose);
-    void commonPoseDepth(const sensor_msgs::ImageConstPtr& img);
+    void processDepthMsg(const sensor_msgs::ImageConstPtr& img);
 
     void semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
                                   const sensor_msgs::ImageConstPtr& depthMsg,

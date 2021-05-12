@@ -11,6 +11,7 @@ find_package(PCL 1.7 REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  nodelet
   geometry_msgs
   quadrotor_msgs
   plan_env
@@ -39,6 +40,11 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
+add_library(exploration_nodelet
+        src/exploration_nodelet.cpp
+        src/fast_exploration_fsm.cpp
+        src/fast_exploration_manager.cpp
+        )
 
 add_executable(exploration_node
   src/exploration_node.cpp 
@@ -46,6 +52,11 @@ add_executable(exploration_node
   src/fast_exploration_manager.cpp
   )
 target_link_libraries(exploration_node 
+  ${catkin_LIBRARIES}
+  # -ldw
+  )
+
+target_link_libraries(exploration_nodelet
   ${catkin_LIBRARIES}
   # -ldw
   )
