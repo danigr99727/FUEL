@@ -13,11 +13,12 @@ namespace fast_planner {
     public:
         virtual void onInit() {
             ros::NodeHandle& nh = getNodeHandle();
-            FastExplorationFSM expl_fsm;
             expl_fsm.init(nh);
             ros::Duration(1.0).sleep();
         }
     };
+
+    FastExplorationFSM expl_fsm
 }
 
 PLUGINLIB_EXPORT_CLASS(fast_planner::ExplorationNodelet, nodelet::Nodelet)
