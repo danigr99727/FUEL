@@ -16,9 +16,9 @@ namespace fast_planner {
             expl_fsm.init(nh);
             ros::Duration(1.0).sleep();
         }
+        FastExplorationFSM expl_fsm;
     };
 
-    FastExplorationFSM expl_fsm
 }
 
 PLUGINLIB_EXPORT_CLASS(fast_planner::ExplorationNodelet, nodelet::Nodelet)
