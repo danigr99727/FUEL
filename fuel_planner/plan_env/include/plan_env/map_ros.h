@@ -118,7 +118,7 @@ private:
   bool show_esdf_time_, show_occ_time_;
   bool show_all_map_;
   bool do_semantics_;
-  bool do_transform_;
+  std::string pose_type_;
   int image_rows_;
   int image_cols_;
   int input_rows_;

@@ -36,7 +36,7 @@ void MapROS::init() {
   node_.param("map_ros/show_esdf_time", show_esdf_time_, false);
   node_.param("map_ros/show_all_map", show_all_map_, false);
   node_.param("map_ros/do_semantics", do_semantics_, true);
-  node_.param("map_ros/do_transform", do_transform_, true);
+  node_.param("map_ros/pose_type", pose_type_, string("odometry"));
   node_.param("map_ros/input_rows", input_rows_, 480);
   node_.param("map_ros/input_cols", input_cols_, 640);
   node_.param("map_ros/image_rows", image_rows_, 480);
@@ -92,25 +92,25 @@ void MapROS::init() {
       new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "/map_ros/posenot", 25));
   transform_sub_.reset(
             new message_filters::Subscriber<geometry_msgs::TransformStamped>(node_, "/map_ros/pose", 25));
-  odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/map_ros/TODO_ODOM", 25));
+  odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/odom_world", 25));
 
-    if (do_semantics_ && do_transform_){
+    if (do_semantics_ && pose_type_=="transform"){
       sync_semantics_image_transform_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImageTransform>(
               MapROS::SyncPolicySemanticsImageTransform(100), *semantic_sub_,*depth_sub_, *transform_sub_));
       sync_semantics_image_transform_->registerCallback(boost::bind(&MapROS::semanticsDepthTransformCallback, this, _1, _2, _3));
   }
-  else if (!do_semantics_ && do_transform_){
+  else if (!do_semantics_ && pose_type_=="transform"){
       sync_image_transform_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImageTransform>(
               MapROS::SyncPolicyImageTransform(100), *depth_sub_, *transform_sub_));
       sync_image_transform_->registerCallback(boost::bind(&MapROS::depthTransformCallback, this, _1, _2));
   }
-  else if (!do_semantics_ && !do_transform_){
+  else if (!do_semantics_ && pose_type_=="pose"){
       sync_image_pose_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImagePose>(
               MapROS::SyncPolicyImagePose(100), *depth_sub_, *pose_sub_));
       sync_image_pose_->registerCallback(boost::bind(&MapROS::depthPoseCallback, this, _1, _2));
   }
 
-  else if (do_semantics_ && !do_transform_){
+  else if (do_semantics_ && pose_type_=="odometry"){
     sync_semantics_image_odom_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImageOdom>(
           MapROS::SyncPolicySemanticsImageOdom(100), *semantic_sub_,*depth_sub_, *odom_sub_));
     sync_semantics_image_odom_->registerCallback(boost::bind(&MapROS::semanticsDepthOdomCallback, this, _1, _2, _3));
@@ -122,30 +122,6 @@ void MapROS::init() {
 
   map_start_time_ = ros::Time::now();
 }
-
-/*def color_map( N=40, normalized=False):
-    """
-    Return Color Map in PASCAL VOC format
-    """
-
-    def bitget(byteval, idx):
-    return (byteval & (1 << idx)) != 0
-
-    dtype = "float32" if normalized else "uint8"
-    cmap = np.zeros((N, 3), dtype=dtype)
-    for i in range(N):
-        r = g = b = 0
-        c = i
-        for j in range(8):
-            r = r | (bitget(c, 0) << 7 - j)
-            g = g | (bitget(c, 1) << 7 - j)
-            b = b | (bitget(c, 2) << 7 - j)
-            c = c >> 3
-
-        cmap[i] = np.array([r, g, b])
-
-    cmap = cmap / 255.0 if normalized else cmap
-    return cmap   */
 
 std::map<int, Eigen::Vector3i> MapROS::get_color_map(int N=256) {
 // Return Color Map in PASCAL VOC format
@@ -247,6 +223,13 @@ std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback
                            msg->pose.pose.orientation.x,
                            msg->pose.pose.orientation.y,
                            msg->pose.pose.orientation.z);
+    //NED: NORTH, EAST, DOWN (aka, forward, right, down?) ENU: EAST NORTH UP (aka, right, forward, up)
+    Eigen::Matrix3d R_rdf_to_flu;
+    R_rdf_to_flu << 0.0f, 0.0f, 1.0f,
+            -1.0f, 0.0f, 0.0f,
+            0.0f, -1.0f, 0.0f;
+    q = R_rdf_to_flu * q;
+    pos = R_rdf_to_flu * pos;
     return (std::make_tuple(pos, q));
 }
 
