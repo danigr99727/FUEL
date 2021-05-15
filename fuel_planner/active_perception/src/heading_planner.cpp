@@ -111,6 +111,7 @@ HeadingPlanner::HeadingPlanner(ros::NodeHandle& nh) {
   nh.param("heading_planner/max_yaw_rate", max_yaw_rate_, -1.0);
   nh.param("heading_planner/w", w_, -1.0);
   nh.param("heading_planner/weight_type", weight_type_, -1);
+  nh.param("map_ros/frame_id", frame_id_, string("world"));
   std::cout << "yaw diff: " << yaw_diff_ << std::endl;
   std::cout << "max yaw diff: " << max_yaw_rate_ << std::endl;
   std::cout << "vert num: " << half_vert_num_ << std::endl;
@@ -419,7 +420,7 @@ void HeadingPlanner::calcFovAABB(const Eigen::Matrix3d& R_wc, const Eigen::Vecto
 
 void HeadingPlanner::visualizeBox(const Eigen::Vector3d& lb, const Eigen::Vector3d& ub) {
   visualization_msgs::Marker mk;
-  mk.header.frame_id = "world";
+  mk.header.frame_id = frame_id_;
   mk.header.stamp = ros::Time::now();
   mk.type = visualization_msgs::Marker::CUBE;
   mk.action = visualization_msgs::Marker::ADD;
@@ -508,7 +509,7 @@ void HeadingPlanner::setFrontier(const vector<vector<Eigen::Vector3d>>& frontier
   frontier_->width = frontier_->points.size();
   frontier_->height = 1;
   frontier_->is_dense = true;
-  frontier_->header.frame_id = "world";
+  frontier_->header.frame_id = frame_id_;
 
   ft_kdtree_.setInputCloud(frontier_);
 }

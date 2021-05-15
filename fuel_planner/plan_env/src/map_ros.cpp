@@ -194,7 +194,6 @@ std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback
 std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback(const geometry_msgs::TransformStamped::ConstPtr &msg)  {
     Eigen::Matrix<double, 3, 1> pos;
     Eigen::Quaterniond q;
-    static int stat = 0;
     pos = Eigen::Matrix<double, 3, 1>(msg->transform.translation.x,
                           msg->transform.translation.y-1,
                           msg->transform.translation.z);
@@ -215,21 +214,55 @@ std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback
 std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::PoseCallback(const nav_msgs::Odometry::ConstPtr &msg)  {
     Eigen::Matrix<double, 3, 1> pos;
     Eigen::Quaterniond q;
-    static int stat = 0;
-    pos = Eigen::Vector3d(msg->pose.pose.position.x,
+    /*pos = Eigen::Vector3d(msg->pose.pose.position.x,
                           msg->pose.pose.position.y,
                           msg->pose.pose.position.z);
     q = Eigen::Quaterniond(msg->pose.pose.orientation.w,
                            msg->pose.pose.orientation.x,
                            msg->pose.pose.orientation.y,
-                           msg->pose.pose.orientation.z);
+                           msg->pose.pose.orientation.z);*/
+
+    Eigen::Matrix4d Pose_receive = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4d cam02body;
+    Eigen::Matrix4d cam2world;
+    cam02body << 0.0, 0.0, 1.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+    cam2world = Eigen::Matrix4d::Identity();
+
+    Eigen::Quaterniond cam2world_quat;
+    Eigen::Vector3d request_position;
+    Eigen::Quaterniond request_pose;
+    request_position.x() = msg->pose.pose.position.x;
+    request_position.y() = msg->pose.pose.position.y;
+    request_position.z() = msg->pose.pose.position.z;
+    request_pose.x() = msg->pose.pose.orientation.x;
+    request_pose.y() = msg->pose.pose.orientation.y;
+    request_pose.z() = msg->pose.pose.orientation.z;
+    request_pose.w() = msg->pose.pose.orientation.w;
+    Pose_receive.block<3, 3>(0, 0) = request_pose.toRotationMatrix();
+    Pose_receive(0, 3) = request_position(0);
+    Pose_receive(1, 3) = request_position(1);
+    Pose_receive(2, 3) = request_position(2);
+
+    Eigen::Matrix4d body_pose = Pose_receive;
+    // convert to cam pose
+    cam2world = body_pose * cam02body;
+    cam2world_quat = cam2world.block<3, 3>(0, 0);
+
+    q = Eigen::Quaterniond(cam2world_quat.w(),
+                           cam2world_quat.x(),
+                           cam2world_quat.y(),
+                           cam2world_quat.z());
+    pos = Eigen::Vector3d(cam2world(0, 3),
+                          cam2world(1, 3),
+                          cam2world(2, 3));
+
     //NED: NORTH, EAST, DOWN (aka, forward, right, down?) ENU: EAST NORTH UP (aka, right, forward, up)
-    Eigen::Matrix3d R_rdf_to_flu;
-    R_rdf_to_flu << 0.0f, 0.0f, 1.0f,
-            -1.0f, 0.0f, 0.0f,
-            0.0f, -1.0f, 0.0f;
-    q = R_rdf_to_flu * q;
-    pos = R_rdf_to_flu * pos;
+    //Eigen::Matrix3d R_rfu_to_flu;
+    //R_rfu_to_flu << 1.0f, 0.0f, 0.0f,
+    //        0.0f, 0.0f, -1.0f,
+    //        0.0f, 1.0f, 0.0f;
+    //q = R_rfu_to_flu * q;
+    //pos = R_rfu_to_flu * pos;
     return (std::make_tuple(pos, q));
 }
 

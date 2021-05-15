@@ -206,7 +206,7 @@ private:
   double yaw_diff_, lambda1_, lambda2_;
   int half_vert_num_;
   double max_yaw_rate_, w_;
-
+  std::string frame_id_;
   enum WEIGHT_TYPE { NON_UNIFORM, UNIFORM };
   int weight_type_;
 };
