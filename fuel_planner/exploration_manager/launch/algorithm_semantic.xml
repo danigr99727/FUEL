@@ -25,7 +25,7 @@
     <remap from ="/map_ros/semantics" to= "$(arg semantic_topic)"/>
     <remap from ="/map_ros/cloud" to="$(arg cloud_topic)"/>
 
-    <param name="sdf_map/resolution"      value="0.1" /> 
+    <param name="sdf_map/resolution"      value="0.2" />
     <param name="sdf_map/map_size_x"   value="$(arg map_size_x_)" /> 
     <param name="sdf_map/map_size_y"   value="$(arg map_size_y_)" /> 
     <param name="sdf_map/map_size_z"   value="$(arg map_size_z_)" /> 
@@ -46,12 +46,12 @@
     <param name="sdf_map/virtual_ceil_height"   value="-10"/>
     <param name="sdf_map/optimistic" value="false" type="bool"/>
     <param name="sdf_map/signed_dist" value="false" type="bool"/>
-    <param name="sdf_map/box_min_x" value="-10" type="double"/>
+   <!-- <param name="sdf_map/box_min_x" value="-10" type="double"/>
     <param name="sdf_map/box_min_y" value="-6" type="double"/>
     <param name="sdf_map/box_min_z" value="0" type="double"/>
     <param name="sdf_map/box_max_x" value="10" type="double"/>
     <param name="sdf_map/box_max_y" value="6" type="double"/>
-    <param name="sdf_map/box_max_z" value="2.0" type="double"/>
+    <param name="sdf_map/box_max_z" value="2.0" type="double"/> -->
 
     <param name="map_ros/cx" value="$(arg cx)"/>
     <param name="map_ros/cy" value="$(arg cy)"/>

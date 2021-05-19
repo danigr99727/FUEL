@@ -7,7 +7,7 @@
 #include <ros/ros.h>
 #include <poly_traj/polynomial_traj.h>
 #include <active_perception/perception_utils.h>
-#include <airsim_ros_pkgs/VelCmd.h>
+#include <airsim_ros_pkgs/SetLocalPosition.h>
 #include <airsim_ros_pkgs/Takeoff.h>
 #include <plan_manage/backward.hpp>
 namespace backward {
@@ -18,16 +18,14 @@ using fast_planner::Polynomial;
 using fast_planner::PolynomialTraj;
 using fast_planner::PerceptionUtils;
 
-ros::Publisher cmd_vis_pub, traj_pub, vel_cmd_pub;
+ros::Publisher cmd_vis_pub, traj_pub;
 ros::ServiceClient pos_cmd_cli;
 ros::ServiceClient takeoff_cli;
 nav_msgs::Odometry odom;
-//airsim_ros_pkgs::SetLocalPosition::Request positionRequest;
-//airsim_ros_pkgs::SetLocalPosition::Response positionResponse;
-airsim_ros_pkgs::VelCmd velocityRequest;
+airsim_ros_pkgs::SetLocalPosition::Request positionRequest;
+airsim_ros_pkgs::SetLocalPosition::Response positionResponse;
 airsim_ros_pkgs::Takeoff::Request takeoffRequest;
 airsim_ros_pkgs::Takeoff::Response takeoffResponse;
-//airsim_ros_pkgs::GPSYaw cmd;
 
 // Info of generated traj
 vector<NonUniformBspline> traj_;
@@ -308,12 +306,12 @@ void cmdCallback(const ros::TimerEvent& e) {
   }
 
   //do frame conversion.. from ned to enu!?
-  velocityRequest.twist.linear.x = vel(1);
-  velocityRequest.twist.linear.y = vel(0);
-  velocityRequest.twist.linear.z = -vel(2);
-  velocityRequest.twist.angular.z = -yawdot;
-  vel_cmd_pub.publish(velocityRequest);
-  //pos_cmd_cli.call(positionRequest, positionResponse);
+  positionRequest.x = pos(1);
+  positionRequest.y = pos(0);
+  positionRequest.z = -pos(2);
+  positionRequest.yaw = -yaw;
+  positionRequest.vehicle_name = "drone_1";
+  pos_cmd_cli.call(positionRequest, positionResponse);
 
   // Draw cmd
   // Eigen::Vector3d dir(cos(yaw), sin(yaw), 0.0);
@@ -417,11 +415,12 @@ void test() {
     Eigen::Vector3d v = vel.evaluateDeBoorT(tn);
     Eigen::Vector3d a = acc.evaluateDeBoorT(tn);
 
-    velocityRequest.twist.linear.x = v(0);
-    velocityRequest.twist.linear.y = v(1);
-    velocityRequest.twist.linear.z = v(2);
-    velocityRequest.twist.angular.z = 0;
-    vel_cmd_pub.publish(velocityRequest);
+    positionRequest.x = p(1);
+    positionRequest.y = p(0);
+    positionRequest.z = -p(2);
+    positionRequest.yaw = 0;
+    positionRequest.vehicle_name = "drone_1";
+    pos_cmd_cli.call(positionRequest, positionResponse);
 
     ros::Duration(0.02).sleep();
     tn = (ros::Time::now() - t1).toSec();
@@ -442,8 +441,8 @@ int main(int argc, char** argv) {
   cmd_vis_pub = node.advertise<visualization_msgs::Marker>("planning/position_cmd_vis", 10);
   //pos_cmd_pub = node.advertise<airsim_ros_pkgs::>("/airsim_position_cmd", 50);
   traj_pub = node.advertise<visualization_msgs::Marker>("planning/travel_traj", 10);
-  vel_cmd_pub = node.advertise<airsim_ros_pkgs::VelCmd>("/airsim_node/drone_1/vel_cmd_world_frame", 10);
-  //pos_cmd_cli = node.serviceClient<airsim_ros_pkgs::SetLocalPosition>("/airsim_node/local_position_goal", true);
+  //vel_cmd_pub = node.advertise<airsim_ros_pkgs::VelCmd>("/airsim_node/drone_1/vel_cmd_world_frame", 10);
+  pos_cmd_cli = node.serviceClient<airsim_ros_pkgs::SetLocalPosition>("/airsim_node/local_position_goal", true);
   takeoff_cli = node.serviceClient<airsim_ros_pkgs::Takeoff>("/airsim_node/drone_1/takeoff", true);
 
   ros::Timer cmd_timer = node.createTimer(ros::Duration(0.01), cmdCallback);
@@ -463,10 +462,6 @@ int main(int argc, char** argv) {
   std::cout << start_time.toSec() << std::endl;
   std::cout << end_time.toSec() << std::endl;
 
-  velocityRequest.twist.linear.x = 0;
-  velocityRequest.twist.linear.y = 1;
-  velocityRequest.twist.linear.z = 0;
-  velocityRequest.twist.angular.z = 1;
 
   percep_utils_.reset(new PerceptionUtils(nh));
 
@@ -475,7 +470,7 @@ int main(int argc, char** argv) {
     ros::Duration(5).sleep();
 
   takeoff_cli.call(takeoffRequest, takeoffResponse);
-    //ros::Duration(5).sleep();
+  ros::Duration(5).sleep();
 
     //for (int i = 0; i < 100; ++i) {
     //    vel_cmd_pub.publish(velocityRequest);

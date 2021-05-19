@@ -12,6 +12,7 @@ find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
+  rospy
   roscpp
   std_msgs
   geometry_msgs
@@ -66,6 +67,8 @@ add_executable(traj_server src/traj_server.cpp)
 target_link_libraries(traj_server ${catkin_LIBRARIES} -ldw)
 add_executable(airsim_traj_server src/airsim_traj_server.cpp)
 target_link_libraries(airsim_traj_server ${catkin_LIBRARIES} -ldw)
+add_executable(airsim_traj_server_pid src/airsim_traj_server_pid.cpp)
+target_link_libraries(airsim_traj_server_pid ${catkin_LIBRARIES} -ldw)
 # add_dependencies(traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # benchmark node
@@ -94,4 +97,9 @@ add_executable(proc_msg2
 target_link_libraries( proc_msg2
     ${catkin_LIBRARIES} 
     ${PCL_LIBRARIES}
-    )  
+    )
+
+catkin_install_python(PROGRAMS
+        src/airsim_racing_traj_server.py
+        DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+        )

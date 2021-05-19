@@ -469,7 +469,7 @@ int main(int argc, char** argv) {
   cmd.header.frame_id = "world";
   cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
   cmd.trajectory_id = traj_id_;
-  cmd.position.x = -3.0;
+  cmd.position.x = 0.0;
   cmd.position.y = 0.0;
   cmd.position.z = 0.0;
   cmd.velocity.x = 0.0;
