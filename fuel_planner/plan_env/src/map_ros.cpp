@@ -238,6 +238,7 @@ std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> MapROS::ProcessPose(
     0.0, 0.0, 1.0, 0.0,
     0.0, -1.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 1.0;
+    //cam02body=cam02body*cam02body; //for when using ORB, assuming its output is RDF
     cam2world = Eigen::Matrix4d::Identity();
 
     Eigen::Quaterniond cam2world_quat;
