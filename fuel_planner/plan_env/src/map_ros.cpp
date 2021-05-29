@@ -70,8 +70,8 @@ void MapROS::init() {
   random_device rd;
   eng_ = default_random_engine(rd());
 
-  esdf_timer_ = node_.createTimer(ros::Duration(0.1), &MapROS::updateESDFCallback, this);
-  vis_timer_ = node_.createTimer(ros::Duration(0.1), &MapROS::visCallback, this);
+  esdf_timer_ = node_.createTimer(ros::Duration(0.25), &MapROS::updateESDFCallback, this);
+  vis_timer_ = node_.createTimer(ros::Duration(0.25), &MapROS::visCallback, this);
 
   map_all_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_all", 10);
   map_local_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_local", 10);
