@@ -1,5 +1,5 @@
 <library path="lib/libairsim_controller_nodelet">
-  <class name="so3_control_airsim/AirsimControllerNodelet" type="AirsimControllerNodelet" base_class_type="nodelet::Nodelet">
+  <class name="airsim_controller/AirsimControllerNodelet" type="AirsimControllerNodelet" base_class_type="nodelet::Nodelet">
     <description>
       airsim_controller_nodelet
     </description>

@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  nodelet
   visualization_msgs
   cv_bridge
   message_filters
@@ -63,5 +64,15 @@ add_executable(test_sdf
         src/map_ros.cpp
         src/raycast.cpp)
 target_link_libraries(test_sdf
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES})
+
+add_library(test_sdf_nodelet
+        src/test_sdf_map_nodelet.cpp
+        src/sdf_map.cpp
+        src/map_ros.cpp
+        src/raycast.cpp
+        )
+target_link_libraries(test_sdf_nodelet
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES})

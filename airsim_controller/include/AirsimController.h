@@ -1,6 +1,3 @@
-#ifndef __SO3_CONTROL_H__
-#define __SO3_CONTROL_H__
-
 #include <Eigen/Geometry>
 
 class AirsimController {
@@ -40,4 +37,3 @@ private:
   Eigen::Quaterniond orientation_;
 };
 
-#endif

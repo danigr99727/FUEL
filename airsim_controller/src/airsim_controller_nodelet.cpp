@@ -6,7 +6,7 @@
 #include <quadrotor_msgs/SO3Command.h>
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
-#include <so3_control_airsim/AirsimController.h>
+#include <AirsimController.h>
 #include <std_msgs/Bool.h>
 #include <tf/transform_datatypes.h>
 #include <airsim_ros_pkgs/VelCmd.h>
@@ -64,6 +64,7 @@ void AirsimControllerNodelet::publishSO3Command(void) {
   velocityRequest->twist.linear.y=force(0);
   velocityRequest->twist.linear.z=-force(2);
   velocityRequest->twist.angular.z=-yawdot;
+
   //velocityRequest->twist.angular.x=orientation.y();
   //velocityRequest->twist.angular.y=orientation.x();
   //velocityRequest->twist.angular.w=orientation.w();

@@ -1,9 +1,14 @@
 #include <iostream>
-#include <so3_control_airsim/AirsimController.h>
+#include <AirsimController.h>
 
 double AngleDifference(const double x, const double y)
 {
+    //static int count = 0;
     auto numbah = std::fmod(x-y, M_PI*2);
+    //if (count--==0){
+    //    std::cout<<"des_yaw: "<<x<<" yaw: "<<y<<" numbah: "<<numbah<<std::endl;
+    //    count = 20;
+    //}
     if (numbah < M_PI)
         return numbah;
     else
@@ -52,10 +57,10 @@ void AirsimController::calculateControl(const Eigen::Vector3d& des_pos, const Ei
                      fabs(totalError[1]) > 3 ? 0 : (fabs(totalError[1]) * 0.2),
                      fabs(totalError[2]) > 3 ? 0 : (fabs(totalError[2]) * 0.2));
 
-  force_.noalias() = 0.15*kx.asDiagonal() * (des_pos - pos_) + /*kv.asDiagonal() * (des_vel - vel_) + */des_vel; //des_acc?
-  double kyaw=0.5;
+  force_.noalias() = 0.15*kx.asDiagonal() * (des_pos - pos_) + 0.15*kv.asDiagonal() * (des_vel - vel_) + des_vel + des_acc;
+  double kyaw=1;
   double kyawdot=1;
-  yawdotCommand_ = kyaw * AngleDifference(des_yaw,yaw_) /*+ kyawdot * (des_yaw_dot - yawdot_)*/ + des_yaw_dot;
+  yawdotCommand_ = kyaw * AngleDifference(des_yaw,yaw_) + kyawdot * (des_yaw_dot - yawdot_) + des_yaw_dot;
 
       //mass_ * /*(Eigen::Vector3d(1, 1, 1) - ka).asDiagonal() **/ (des_acc) +
       //mass_ * ka.asDiagonal() * (des_acc - acc_) + mass_ * g_ * Eigen::Vector3d(0, 0, 1);

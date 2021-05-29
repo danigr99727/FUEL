@@ -21,6 +21,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   nh.param("sdf_map/map_size_y", y_size, -1.0);
   nh.param("sdf_map/map_size_z", z_size, -1.0);
   nh.param("sdf_map/obstacles_inflation", mp_->obstacles_inflation_, -1.0);
+  nh.param("sdf_map/person_obstacles_inflation", mp_->person_obstacles_inflation_, 0.199);
   nh.param("sdf_map/local_bound_inflate", mp_->local_bound_inflate_, 1.0);
   nh.param("sdf_map/local_map_margin", mp_->local_map_margin_, 1);
   nh.param("sdf_map/ground_height", mp_->ground_height_, 1.0);
@@ -521,8 +522,10 @@ void SDFMap::clearAndInflateLocalMap() {
   // update inflated occupied cells
   // clean outdated occupancy
 
-  int inf_step = ceil(mp_->obstacles_inflation_ / mp_->resolution_);
-  vector<Eigen::Vector3i> inf_pts(pow(2 * inf_step + 1, 3));
+  const int inf_step = ceil(mp_->obstacles_inflation_ / mp_->resolution_);
+  const int person_inf_step = ceil(mp_->person_obstacles_inflation_ / mp_->resolution_);
+
+  vector<Eigen::Vector3i> inf_pts(pow(2 * person_inf_step + 1, 3));
   // inf_pts.resize(4 * inf_step + 3);
 
   for (int x = md_->local_bound_min_(0); x <= md_->local_bound_max_(0); ++x)
@@ -537,7 +540,10 @@ void SDFMap::clearAndInflateLocalMap() {
       for (int z = md_->local_bound_min_(2); z <= md_->local_bound_max_(2); ++z) {
         int id1 = toAddress(x, y, z);
         if (md_->occupancy_buffer_[id1] > mp_->min_occupancy_log_) {
-          inflatePoint(Eigen::Vector3i(x, y, z), inf_step, inf_pts);
+          if(md_->semantics_buffer_[id1]==30)
+              inflatePoint(Eigen::Vector3i(x, y, z), person_inf_step, inf_pts);
+          else
+              inflatePoint(Eigen::Vector3i(x, y, z), inf_step, inf_pts);
 
           for (auto inf_pt : inf_pts) {
             int idx_inf = toAddress(inf_pt);

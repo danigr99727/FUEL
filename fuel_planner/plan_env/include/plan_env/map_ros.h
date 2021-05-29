@@ -33,9 +33,9 @@ public:
   void init();
 
 private:
-  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::PoseStamped::ConstPtr &msg);
-  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::TransformStamped::ConstPtr &msg);
-  static std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const nav_msgs::Odometry::ConstPtr &msg);
+  std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::PoseStamped::ConstPtr &msg);
+  std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::TransformStamped::ConstPtr &msg);
+  std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const nav_msgs::Odometry::ConstPtr &msg);
 
   void depthPoseCallback(const sensor_msgs::ImageConstPtr& img,
                          const geometry_msgs::PoseStampedConstPtr& pose);
@@ -108,7 +108,7 @@ private:
     SynchronizerSemanticsImageTransform sync_semantics_image_transform_;
 
   ros::Publisher map_local_pub_, map_local_inflate_pub_, esdf_pub_, map_all_pub_, unknown_pub_,
-      update_range_pub_, depth_pub_, semantic_map_pub_, semantic_color_map_pub_;
+      update_range_pub_, depth_pub_, semantic_map_pub_, semantic_color_map_pub_, sent_pub_, received_pub_;
   ros::Timer esdf_timer_, vis_timer_;
 
   // params, depth projection
@@ -124,6 +124,7 @@ private:
   bool show_esdf_time_, show_occ_time_;
   bool show_all_map_;
   bool do_semantics_;
+  bool input_rdf_;
   bool semantics_labels_;
   std::string pose_type_;
   int image_rows_;

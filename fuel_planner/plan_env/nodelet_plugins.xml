@@ -1,0 +1,7 @@
+<library path="lib/libtest_sdf_nodelet">
+    <class name="exploration_manager/test_sdf_nodelet" type="fast_planner::TestSDFNodelet" base_class_type="nodelet::Nodelet">
+        <description>
+            Fast exploration nodelet.
+        </description>
+    </class>
+</library>

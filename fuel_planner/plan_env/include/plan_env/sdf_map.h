@@ -92,7 +92,7 @@ struct MapParam {
   Eigen::Vector3d map_min_boundary_, map_max_boundary_;
   Eigen::Vector3i map_voxel_num_;
   double resolution_, resolution_inv_;
-  double obstacles_inflation_;
+  double obstacles_inflation_, person_obstacles_inflation_;
   double virtual_ceil_height_, ground_height_;
   Eigen::Vector3i box_min_, box_max_;
   Eigen::Vector3d box_mind_, box_maxd_;

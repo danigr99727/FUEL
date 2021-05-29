@@ -17,6 +17,8 @@
   <arg name="max_vel"/>
   <arg name="max_acc"/>
 
+  <arg name="manager"/>
+
   <!-- main node -->
   <node pkg="nodelet" name="exploration_nodelet" type="nodelet" output="screen" args="load exploration_manager/ExplorationNodelet $(arg manager)" >
     <remap from ="/odom_world" to="$(arg odometry_topic)"/>
