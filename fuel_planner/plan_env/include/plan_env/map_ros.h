@@ -33,6 +33,8 @@ public:
   void init();
 
 private:
+  //void findPeople();
+
   std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::PoseStamped::ConstPtr &msg);
   std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const geometry_msgs::TransformStamped::ConstPtr &msg);
   std::tuple<Eigen::Matrix<double, 3, 1>, Eigen::Quaterniond> ProcessPose(const nav_msgs::Odometry::ConstPtr &msg);
@@ -129,8 +131,6 @@ private:
   std::string pose_type_;
   int image_rows_;
   int image_cols_;
-  int input_rows_;
-  int input_cols_;
   // data
   // flags of map state
   bool local_updated_, esdf_need_update_;

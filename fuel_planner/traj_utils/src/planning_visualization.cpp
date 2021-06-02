@@ -15,8 +15,9 @@ PlanningVisualization::PlanningVisualization(ros::NodeHandle& nh) {
   predict_pub_ = node.advertise<visualization_msgs::Marker>("/planning_vis/prediction", 100);
   pubs_.push_back(predict_pub_);
 
-  visib_pub_ = node.advertise<visualization_msgs::Marker>("/planning_vis/visib_constraint",
-                                                          100);
+    visib_pub_ = node.advertise<visualization_msgs::Marker>("/planning_vis/"
+                                                            "visib_constraint",
+                                                            100);
   pubs_.push_back(visib_pub_);
 
   frontier_pub_ = node.advertise<visualization_msgs::Marker>("/planning_vis/frontier", 10000);

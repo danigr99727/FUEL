@@ -18,6 +18,23 @@ void MapROS::setMap(SDFMap* map) {
   this->map_ = map;
 }
 
+class Person{
+    //frontier
+    //pixels
+    //velocity vector
+    //position vector
+    //acceleration vector??
+};
+
+/*void MapROS::findPeople(){
+    std::vector<Person> people;
+    for (int x = min_cut(0); x <= max_cut(0); ++x)
+        for (int y = min_cut(1); y <= max_cut(1); ++y)
+            for (int z = map_->mp_->box_min_(2); z < map_->mp_->box_max_(2); ++z) {
+
+            }
+}*/
+
 void MapROS::init() {
   node_.param("map_ros/fx", fx_, -1.0);
   node_.param("map_ros/fy", fy_, -1.0);
@@ -39,10 +56,8 @@ void MapROS::init() {
     node_.param("map_ros/input_rdf", input_rdf_, true);
     node_.param("map_ros/semantics_label_type", semantics_labels_, false);
   node_.param("map_ros/pose_type", pose_type_, string("odometry"));
-  node_.param("map_ros/input_rows", input_rows_, 480);
-  node_.param("map_ros/input_cols", input_cols_, 640);
-  node_.param("map_ros/image_rows", image_rows_, 480);
-  node_.param("map_ros/image_cols", image_cols_, 640);
+  node_.param("map_ros/image_rows", image_rows_, 240);
+  node_.param("map_ros/image_cols", image_cols_, 320);
 
   node_.param("map_ros/frame_id", frame_id_, string("world"));
 
@@ -70,66 +85,66 @@ void MapROS::init() {
   random_device rd;
   eng_ = default_random_engine(rd());
 
-  esdf_timer_ = node_.createTimer(ros::Duration(0.25), &MapROS::updateESDFCallback, this);
-  vis_timer_ = node_.createTimer(ros::Duration(0.25), &MapROS::visCallback, this);
+  esdf_timer_ = node_.createTimer(ros::Duration(0.1), &MapROS::updateESDFCallback, this);
+  vis_timer_ = node_.createTimer(ros::Duration(0.1), &MapROS::visCallback, this);
 
-  map_all_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_all", 10);
-  map_local_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_local", 10);
+  map_all_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_all", 100);
+  map_local_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_local", 100);
   map_local_inflate_pub_ =
-      node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_local_inflate", 10);
-  unknown_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/unknown", 10);
-  esdf_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/esdf", 10);
-  update_range_pub_ = node_.advertise<visualization_msgs::Marker>("/sdf_map/update_range", 10);
-  depth_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/depth_cloud", 10);
+      node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/occupancy_local_inflate", 100);
+  unknown_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/unknown", 100);
+  esdf_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/esdf", 100);
+  update_range_pub_ = node_.advertise<visualization_msgs::Marker>("/sdf_map/update_range", 100);
+  depth_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/depth_cloud", 100);
 
-  received_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/received", 500);
-  sent_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/sent", 500);
+  //received_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/received", 500);
+  //sent_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/sent", 500);
 
 
     if(do_semantics_){
-      semantic_color_map_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/semantic_color_occupancy", 15);
+      semantic_color_map_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/semantic_color_occupancy", 150);
   }
 
-  depth_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(node_, "/map_ros/depth", 15));
-  semantic_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(node_, "/map_ros/semantics", 15));
+  depth_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(node_, "/map_ros/depth", 150));
+  semantic_sub_.reset(new message_filters::Subscriber<sensor_msgs::Image>(node_, "/map_ros/semantics", 150));
     cloud_sub_.reset(
-      new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "/map_ros/cloud", 15));
+      new message_filters::Subscriber<sensor_msgs::PointCloud2>(node_, "/map_ros/cloud", 150));
   pose_sub_.reset(
-      new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "/map_ros/posenot", 15));
+      new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "/map_ros/posenot", 150));
   transform_sub_.reset(
-            new message_filters::Subscriber<geometry_msgs::TransformStamped>(node_, "/map_ros/pose", 15));
-  odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/odom_world", 15));
+            new message_filters::Subscriber<geometry_msgs::TransformStamped>(node_, "/map_ros/pose", 150));
+  odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/odom_world", 150));
 
     if (do_semantics_ && pose_type_=="transform"){
       sync_semantics_image_transform_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImageTransform>(
-              MapROS::SyncPolicySemanticsImageTransform(15), *semantic_sub_,*depth_sub_, *transform_sub_));
+              MapROS::SyncPolicySemanticsImageTransform(150), *semantic_sub_,*depth_sub_, *transform_sub_));
       sync_semantics_image_transform_->registerCallback(boost::bind(&MapROS::semanticsDepthTransformCallback, this, _1, _2, _3));
   }
   else if (!do_semantics_ && pose_type_=="transform"){
       sync_image_transform_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImageTransform>(
-              MapROS::SyncPolicyImageTransform(15), *depth_sub_, *transform_sub_));
+              MapROS::SyncPolicyImageTransform(150), *depth_sub_, *transform_sub_));
       sync_image_transform_->registerCallback(boost::bind(&MapROS::depthTransformCallback, this, _1, _2));
   }
   else if (!do_semantics_ && pose_type_=="pose"){
       sync_image_pose_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImagePose>(
-              MapROS::SyncPolicyImagePose(15), *depth_sub_, *pose_sub_));
+              MapROS::SyncPolicyImagePose(150), *depth_sub_, *pose_sub_));
       sync_image_pose_->registerCallback(boost::bind(&MapROS::depthPoseCallback, this, _1, _2));
   }
 
   else if (do_semantics_ && pose_type_=="odometry"){
     sync_semantics_image_odom_.reset(new message_filters::Synchronizer<MapROS::SyncPolicySemanticsImageOdom>(
-          MapROS::SyncPolicySemanticsImageOdom(15), *semantic_sub_,*depth_sub_, *odom_sub_));
+          MapROS::SyncPolicySemanticsImageOdom(150), *semantic_sub_,*depth_sub_, *odom_sub_));
     sync_semantics_image_odom_->registerCallback(boost::bind(&MapROS::semanticsDepthOdomCallback, this, _1, _2, _3));
   }
 
   else if (!do_semantics_ && pose_type_=="odometry"){
         sync_image_odom_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyImageOdom>(
-                MapROS::SyncPolicyImageOdom(15), *depth_sub_, *odom_sub_));
+                MapROS::SyncPolicyImageOdom(150), *depth_sub_, *odom_sub_));
         sync_image_odom_->registerCallback(boost::bind(&MapROS::depthOdomCallback, this, _1, _2));
     }
 
   sync_cloud_pose_.reset(new message_filters::Synchronizer<MapROS::SyncPolicyCloudPose>(
-      MapROS::SyncPolicyCloudPose(15), *cloud_sub_, *pose_sub_));
+      MapROS::SyncPolicyCloudPose(150), *cloud_sub_, *pose_sub_));
   sync_cloud_pose_->registerCallback(boost::bind(&MapROS::cloudPoseCallback, this, _1, _2));
 
   map_start_time_ = ros::Time::now();
@@ -359,6 +374,9 @@ void MapROS::semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& s
 void MapROS::semanticsDepthOdomCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
                                 const sensor_msgs::ImageConstPtr& depthMsg,
                                 const nav_msgs::OdometryConstPtr& odomMsg){
+    //std_msgs::Header header_msg;
+    //header_msg.stamp = odomMsg->header.stamp;
+    //received_pub_.publish(header_msg);
 
     std::tie(camera_pos_, camera_q_) = ProcessPose(odomMsg);
     cv_bridge::CvImagePtr semantics_cv_ptr = cv_bridge::toCvCopy(semanticsMsg, semanticsMsg->encoding);
@@ -366,18 +384,20 @@ void MapROS::semanticsDepthOdomCallback(const sensor_msgs::ImageConstPtr& semant
         (semantics_cv_ptr->image).convertTo(semantics_cv_ptr->image, CV_8UC1);
     semantics_cv_ptr->image.copyTo(*semantic_image_);
     processDepthMsg(depthMsg);
+
+    //sent_pub_.publish(header_msg);
 }
 
 void MapROS::depthOdomCallback(const sensor_msgs::ImageConstPtr& depthMsg,
                                const nav_msgs::OdometryConstPtr& odomMsg){
-    std_msgs::Header header_msg;
-    header_msg.stamp = odomMsg->header.stamp;
-    received_pub_.publish(header_msg);
+    //std_msgs::Header header_msg;
+    //header_msg.stamp = odomMsg->header.stamp;
+    //received_pub_.publish(header_msg);
 
     std::tie(camera_pos_, camera_q_) = ProcessPose(odomMsg);
     processDepthMsg(depthMsg);
 
-    sent_pub_.publish(header_msg);
+    //sent_pub_.publish(header_msg);
 }
 
 void MapROS::processDepthImage() {

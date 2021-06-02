@@ -486,7 +486,7 @@ int main(int argc, char** argv) {
   // test();
   // Initialization for exploration
   for (int i = 0; i < 100; ++i) {
-    cmd.position.z += 0.01;
+    cmd.position.z += 0.007;
     pos_cmd_pub.publish(cmd);
     ros::Duration(0.01).sleep();
   }
