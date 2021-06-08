@@ -68,7 +68,6 @@ private:
   void clearAndInflateLocalMap();
   void inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eigen::Vector3i>& pts);
   void setCacheOccupancy(const int& adr, const int& occ);
-  void setSemantics(const int& adr, const uint32_t& label);
 
     Eigen::Vector3d closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt);
   template <typename F_get_val, typename F_set_val>
@@ -116,6 +115,7 @@ struct MapData {
   std::vector<double> tmp_buffer1_;
   std::vector<double> tmp_buffer2_;
   std::vector<uint32_t> semantics_buffer_;
+  std::vector<std::vector<uint32_t>> semantics_mode_buffer_;
   // data for updating
   vector<short> count_hit_, count_miss_, count_hit_and_miss_;
   vector<char> flag_rayend_, flag_visited_;

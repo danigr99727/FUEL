@@ -149,7 +149,10 @@ HeadingPlanner::HeadingPlanner(ros::NodeHandle& nh) {
   //          0,  0,  1, 0,
   //          1,  0,  0, 0,
   //          0,  0,  0, 1;
-  T_cb_ << 0, -1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1;
+  T_cb_ << 0, -1, 0, 0,
+  0, 0, 1, 0,
+  1, 0, 0, 0,
+  0, 0, 0, 1;
   T_bc_ = T_cb_.inverse();
 
   std::cout << "T_cb: " << T_cb_ << std::endl;

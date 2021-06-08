@@ -9,13 +9,19 @@ PerceptionUtils::PerceptionUtils(ros::NodeHandle& nh) {
   nh.param("perception_utils/right_angle", right_angle_, -1.0);
   nh.param("perception_utils/max_dist", max_dist_, -1.0);
   nh.param("perception_utils/vis_dist", vis_dist_, -1.0);
+  vis_dist_=3;
+          max_dist_=8.5;
+    std::cout<<"vis_dist:"<<vis_dist_<<std::endl;
 
   n_top_ << 0.0, sin(M_PI_2 - top_angle_), cos(M_PI_2 - top_angle_);
   n_bottom_ << 0.0, -sin(M_PI_2 - top_angle_), cos(M_PI_2 - top_angle_);
 
   n_left_ << sin(M_PI_2 - left_angle_), 0.0, cos(M_PI_2 - left_angle_);
   n_right_ << -sin(M_PI_2 - right_angle_), 0.0, cos(M_PI_2 - right_angle_);
-  T_cb_ << 0, -1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1;
+  T_cb_ << 0, -1, 0, 0,
+  0, 0, 1, 0,
+  1, 0, 0, 0,
+  0, 0, 0, 1;
   T_bc_ = T_cb_.inverse();
 
   // FOV vertices in body frame, for FOV visualization

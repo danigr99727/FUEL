@@ -54,13 +54,13 @@ void MapROS::init() {
   node_.param("map_ros/show_all_map", show_all_map_, false);
   node_.param("map_ros/do_semantics", do_semantics_, false);
     node_.param("map_ros/input_rdf", input_rdf_, true);
-    node_.param("map_ros/semantics_label_type", semantics_labels_, false);
   node_.param("map_ros/pose_type", pose_type_, string("odometry"));
   node_.param("map_ros/image_rows", image_rows_, 240);
   node_.param("map_ros/image_cols", image_cols_, 320);
 
   node_.param("map_ros/frame_id", frame_id_, string("world"));
-
+image_rows_=240;
+image_cols_=320;
   color_map_ = get_color_map(256);
 
   proj_points_.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
@@ -97,8 +97,8 @@ void MapROS::init() {
   update_range_pub_ = node_.advertise<visualization_msgs::Marker>("/sdf_map/update_range", 100);
   depth_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/sdf_map/depth_cloud", 100);
 
-  //received_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/received", 500);
-  //sent_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/sent", 500);
+  received_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/received", 500);
+  sent_pub_ = node_.advertise<std_msgs::Header>("/sdf_map/sent", 500);
 
 
     if(do_semantics_){
@@ -150,11 +150,11 @@ void MapROS::init() {
   map_start_time_ = ros::Time::now();
 }
 
-std::map<int, Eigen::Vector3i> MapROS::get_color_map(int N=256) {
+std::unordered_map<int, Eigen::Vector3i> MapROS::get_color_map(int N=256) {
 // Return Color Map in PASCAL VOC format
     auto bitget = [](uint32_t byte_val, uint8_t idx){return (byte_val & (1<<idx)) !=0;};
     uint8_t r, g, b;
-    std::map<int, Eigen::Vector3i> color_map;
+    std::unordered_map<int, Eigen::Vector3i> color_map;
     for(int i=0 ; i<N; i++){
         r = 0; g = 0; b = 0;
         int c = i;
@@ -374,30 +374,30 @@ void MapROS::semanticsDepthTransformCallback(const sensor_msgs::ImageConstPtr& s
 void MapROS::semanticsDepthOdomCallback(const sensor_msgs::ImageConstPtr& semanticsMsg,
                                 const sensor_msgs::ImageConstPtr& depthMsg,
                                 const nav_msgs::OdometryConstPtr& odomMsg){
-    //std_msgs::Header header_msg;
-    //header_msg.stamp = odomMsg->header.stamp;
-    //received_pub_.publish(header_msg);
+    std_msgs::Header header_msg;
+    header_msg.stamp = odomMsg->header.stamp;
+    received_pub_.publish(header_msg);
 
     std::tie(camera_pos_, camera_q_) = ProcessPose(odomMsg);
     cv_bridge::CvImagePtr semantics_cv_ptr = cv_bridge::toCvCopy(semanticsMsg, semanticsMsg->encoding);
-    if (semanticsMsg->encoding != sensor_msgs::image_encodings::MONO8)
-        (semantics_cv_ptr->image).convertTo(semantics_cv_ptr->image, CV_8UC1);
-    semantics_cv_ptr->image.copyTo(*semantic_image_);
+    if (semanticsMsg->encoding == sensor_msgs::image_encodings::BGR8)
+        cv::cvtColor((semantics_cv_ptr->image), *semantic_image_, cv::COLOR_BGR2GRAY);
+    else
+        semantics_cv_ptr->image.copyTo(*semantic_image_);
     processDepthMsg(depthMsg);
-
-    //sent_pub_.publish(header_msg);
+    sent_pub_.publish(header_msg);
 }
 
 void MapROS::depthOdomCallback(const sensor_msgs::ImageConstPtr& depthMsg,
                                const nav_msgs::OdometryConstPtr& odomMsg){
-    //std_msgs::Header header_msg;
-    //header_msg.stamp = odomMsg->header.stamp;
-    //received_pub_.publish(header_msg);
+    std_msgs::Header header_msg;
+    header_msg.stamp = odomMsg->header.stamp;
+    received_pub_.publish(header_msg);
 
     std::tie(camera_pos_, camera_q_) = ProcessPose(odomMsg);
     processDepthMsg(depthMsg);
 
-    //sent_pub_.publish(header_msg);
+    sent_pub_.publish(header_msg);
 }
 
 void MapROS::processDepthImage() {
@@ -456,8 +456,8 @@ void MapROS::processDepthImage() {
       }
     }
   }
-
-    publishDepth();
+    if(!do_semantics_)
+        publishDepth();
 }
 
 void MapROS::publishMapAll() {
@@ -483,6 +483,20 @@ void MapROS::publishMapAll() {
           RGBLpt.y = pos(1);
           RGBLpt.z = pos(2);
           if(do_semantics_){
+              /*static std::vector<uint32_t> all_labels;
+              bool in=true;
+              std::cout<<"LABELS: ";
+              for(unsigned int all_label : all_labels){
+                  std::cout<<all_label<<" ";
+                  if(all_label==RGBLpt.label)
+                      in=false;
+              }
+              if(in){
+                  all_labels.push_back(RGBLpt.label);
+                  std::cout<<RGBLpt.label;
+              }
+              std::cout<<std::endl;*/
+
               seen_labels.emplace(RGBLpt.label);
               RGBLpt.label = map_->md_->semantics_buffer_[map_->toAddress(x,y,z)];
               rgb = color_map_[static_cast<int>(RGBLpt.label)];
@@ -676,7 +690,7 @@ void MapROS::publishESDF() {
       dist = max(dist, min_dist);
       pt.x = pos(0);
       pt.y = pos(1);
-      pt.z = -0.2;
+      pt.z = 0.7;
       pt.intensity = (dist - min_dist) / (max_dist - min_dist);
       cloud->push_back(pt);
     }

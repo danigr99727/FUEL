@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <random>
+#include <unordered_map>
 
 using std::shared_ptr;
 using std::normal_distribution;
@@ -66,8 +67,8 @@ private:
 
   void processDepthImage();
 
-  std::map<int, Eigen::Vector3i> get_color_map(int N);
-    std::map<int, Eigen::Vector3i> color_map_;
+  std::unordered_map<int, Eigen::Vector3i> get_color_map(int N);
+    std::unordered_map<int, Eigen::Vector3i> color_map_;
     SDFMap* map_;
   // may use ExactTime?
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, geometry_msgs::PoseStamped>
@@ -127,7 +128,6 @@ private:
   bool show_all_map_;
   bool do_semantics_;
   bool input_rdf_;
-  bool semantics_labels_;
   std::string pose_type_;
   int image_rows_;
   int image_cols_;

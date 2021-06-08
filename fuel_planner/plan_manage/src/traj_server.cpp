@@ -180,8 +180,7 @@ void newCallback(std_msgs::Empty msg) {
 void odomCallbck(const nav_msgs::Odometry& msg) {
   if (msg.child_frame_id == "X" || msg.child_frame_id == "O") return;
   odom = msg;
-  traj_real_.push_back(
-      Eigen::Vector3d(odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z));
+  traj_real_.emplace_back(odom.pose.pose.position.x, odom.pose.pose.position.y, odom.pose.pose.position.z);
 
   if (traj_real_.size() > 10000) traj_real_.erase(traj_real_.begin(), traj_real_.begin() + 1000);
 }
@@ -203,9 +202,7 @@ void visCallback(const ros::TimerEvent& e) {
   // displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 1, 0, 1), pub_traj_id_);
   displayTrajWithColor(traj_cmd_, 0.05, Eigen::Vector4d(0, 0, 1, 1), pub_traj_id_);
 
-  // displayTrajWithColor(traj_real_, 0.03, Eigen::Vector4d(0.925, 0.054, 0.964,
-  // 1),
-  //                      1);
+  displayTrajWithColor(traj_real_, 0.03, Eigen::Vector4d(0.925, 0.054, 0.964, 1), 1);
 }
 
 void bsplineCallback(const bspline::BsplineConstPtr& msg) {
@@ -485,11 +482,7 @@ int main(int argc, char** argv) {
 
   // test();
   // Initialization for exploration
-  for (int i = 0; i < 100; ++i) {
-    cmd.position.z += 0.007;
-    pos_cmd_pub.publish(cmd);
-    ros::Duration(0.01).sleep();
-  }
+
   // ros::Duration(1.0).sleep();
   // for (int i = 0; i < 100; ++i)
   // {

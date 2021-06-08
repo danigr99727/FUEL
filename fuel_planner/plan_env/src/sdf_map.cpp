@@ -1,6 +1,27 @@
 #include "plan_env/sdf_map.h"
 #include "plan_env/map_ros.h"
 #include <plan_env/raycast.h>
+#include <unordered_map>
+
+template<typename T>
+T getMode(vector<T> &arr)
+{
+    if (arr.empty())
+        return -1;
+
+    std::unordered_map<T, int> freq_count;
+
+    for (const auto &item : arr)
+        freq_count[item]++;
+
+    unsigned currentMax = 0;
+    for(auto it = freq_count.cbegin(); it != freq_count.cend(); ++it )
+        if (it -> second > currentMax) {
+            currentMax = it->second;
+        }
+
+    return currentMax;
+}
 
 namespace fast_planner {
 SDFMap::SDFMap() {
@@ -21,7 +42,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   nh.param("sdf_map/map_size_y", y_size, -1.0);
   nh.param("sdf_map/map_size_z", z_size, -1.0);
   nh.param("sdf_map/obstacles_inflation", mp_->obstacles_inflation_, -1.0);
-  nh.param("sdf_map/person_obstacles_inflation", mp_->person_obstacles_inflation_, 0.199);
+  nh.param("sdf_map/person_obstacles_inflation", mp_->person_obstacles_inflation_, 0.299);
   nh.param("sdf_map/local_bound_inflate", mp_->local_bound_inflate_, 1.0);
   nh.param("sdf_map/local_map_margin", mp_->local_map_margin_, 1);
   nh.param("sdf_map/ground_height", mp_->ground_height_, 1.0);
@@ -72,6 +93,7 @@ void SDFMap::initMap(ros::NodeHandle& nh) {
   md_->tmp_buffer1_ = vector<double>(buffer_size, 0);
   md_->tmp_buffer2_ = vector<double>(buffer_size, 0);
   md_->semantics_buffer_ = vector<uint32_t>(buffer_size, 0);
+  md_->semantics_mode_buffer_ = vector<vector<uint32_t>>(buffer_size, vector<uint32_t>());
   md_->raycast_num_ = 0;
   md_->reset_updated_box_ = true;
   md_->update_min_ = md_->update_max_ = Eigen::Vector3d(0, 0, 0);
@@ -257,10 +279,6 @@ void SDFMap::setCacheOccupancy(const int& adr, const int& occ) {
   //   md_->cache_voxel_.push(adr);
 }
 
-void SDFMap::setSemantics(const int& adr, const uint32_t& label){
-    md_->semantics_buffer_[adr] = label;
-}
-
 void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, const int& point_num,
                                 const Eigen::Vector3d& camera_pos){
     if (point_num == 0) return;
@@ -272,7 +290,7 @@ void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, c
         md_->update_max_ = camera_pos;
         md_->reset_updated_box_ = false;
     }
-
+    //md_->semantics_mode_buffer_ = vector<vector<uint32_t>>(md_->semantics_buffer_.size(), vector<uint32_t>());
     Eigen::Vector3d pt_w, tmp;
     Eigen::Vector3i idx;
     int vox_adr;
@@ -302,7 +320,8 @@ void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, c
         posToIndex(pt_w, idx);
         vox_adr = toAddress(idx);
         setCacheOccupancy(vox_adr, tmp_flag);
-        setSemantics(vox_adr, pt.label);
+        //md_->semantics_mode_buffer_[vox_adr].push_back(pt.label);
+        md_->semantics_buffer_[vox_adr]=pt.label;
         for (int k = 0; k < 3; ++k) {
             update_min[k] = min(update_min[k], pt_w[k]);
             update_max[k] = max(update_max[k], pt_w[k]);
@@ -318,6 +337,11 @@ void SDFMap::inputSemanticCloud(const pcl::PointCloud<pcl::PointXYZL>& points, c
         while (caster_->nextId(idx))
             setCacheOccupancy(toAddress(idx), 0);
     }
+
+    //settng semantic label for each voxel using the mode
+    //for (int i = 0; i < md_->semantics_buffer_.size(); ++i) {
+    //    md_->semantics_buffer_[i]= getMode<uint32_t>(md_->semantics_mode_buffer_[i]);
+    //}
 
     Eigen::Vector3d bound_inf(mp_->local_bound_inflate_, mp_->local_bound_inflate_, 0);
     posToIndex(update_max + bound_inf, md_->local_bound_max_);
@@ -525,7 +549,7 @@ void SDFMap::clearAndInflateLocalMap() {
   const int inf_step = ceil(mp_->obstacles_inflation_ / mp_->resolution_);
   const int person_inf_step = ceil(mp_->person_obstacles_inflation_ / mp_->resolution_);
 
-  vector<Eigen::Vector3i> inf_pts(pow(2 * person_inf_step + 1, 3));
+  vector<Eigen::Vector3i> inf_pts(pow(2 * max(person_inf_step, inf_step) + 1, 3));
   // inf_pts.resize(4 * inf_step + 3);
 
   for (int x = md_->local_bound_min_(0); x <= md_->local_bound_max_(0); ++x)
@@ -539,9 +563,13 @@ void SDFMap::clearAndInflateLocalMap() {
     for (int y = md_->local_bound_min_(1); y <= md_->local_bound_max_(1); ++y)
       for (int z = md_->local_bound_min_(2); z <= md_->local_bound_max_(2); ++z) {
         int id1 = toAddress(x, y, z);
+
         if (md_->occupancy_buffer_[id1] > mp_->min_occupancy_log_) {
-          if(md_->semantics_buffer_[id1]==30)
+          if(md_->semantics_buffer_[id1]==30 || md_->semantics_buffer_[id1]==215)
+          {
               inflatePoint(Eigen::Vector3i(x, y, z), person_inf_step, inf_pts);
+              //std::cout<<"PERSON"<<std::endl;
+          }
           else
               inflatePoint(Eigen::Vector3i(x, y, z), inf_step, inf_pts);
 
