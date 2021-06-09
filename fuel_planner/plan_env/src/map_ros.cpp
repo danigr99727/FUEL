@@ -55,12 +55,11 @@ void MapROS::init() {
   node_.param("map_ros/do_semantics", do_semantics_, false);
     node_.param("map_ros/input_rdf", input_rdf_, true);
   node_.param("map_ros/pose_type", pose_type_, string("odometry"));
-  node_.param("map_ros/image_rows", image_rows_, 240);
-  node_.param("map_ros/image_cols", image_cols_, 320);
+  node_.param("map_ros/image_rows", image_rows_, 480);
+  node_.param("map_ros/image_cols", image_cols_, 640);
 
   node_.param("map_ros/frame_id", frame_id_, string("world"));
-image_rows_=240;
-image_cols_=320;
+
   color_map_ = get_color_map(256);
 
   proj_points_.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
