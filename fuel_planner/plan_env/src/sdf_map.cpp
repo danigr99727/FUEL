@@ -568,7 +568,6 @@ void SDFMap::clearAndInflateLocalMap() {
           if(md_->semantics_buffer_[id1]==30 || md_->semantics_buffer_[id1]==215)
           {
               inflatePoint(Eigen::Vector3i(x, y, z), person_inf_step, inf_pts);
-              //std::cout<<"PERSON"<<std::endl;
           }
           else
               inflatePoint(Eigen::Vector3i(x, y, z), inf_step, inf_pts);
