@@ -52,7 +52,7 @@ void MapROS::init() {
   node_.param("map_ros/show_occ_time", show_occ_time_, false);
   node_.param("map_ros/show_esdf_time", show_esdf_time_, false);
   node_.param("map_ros/show_all_map", show_all_map_, false);
-  node_.param("map_ros/do_semantics", do_semantics_, false);
+  node_.param("map_ros/do_semantics", do_semantics_, true);
     node_.param("map_ros/input_rdf", input_rdf_, true);
   node_.param("map_ros/pose_type", pose_type_, string("odometry"));
   node_.param("map_ros/image_rows", image_rows_, 480);
@@ -61,7 +61,6 @@ void MapROS::init() {
   node_.param("map_ros/frame_id", frame_id_, string("world"));
 
   color_map_ = get_color_map(256);
-
   proj_points_.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
   point_cloud_.points.resize(image_cols_ * image_rows_ / (skip_pixel_ * skip_pixel_));
   if(do_semantics_) {
@@ -689,7 +688,7 @@ void MapROS::publishESDF() {
       dist = max(dist, min_dist);
       pt.x = pos(0);
       pt.y = pos(1);
-      pt.z = 0.7;
+      pt.z = pos(2);
       pt.intensity = (dist - min_dist) / (max_dist - min_dist);
       cloud->push_back(pt);
     }
