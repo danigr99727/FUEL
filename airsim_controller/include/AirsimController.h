@@ -16,7 +16,7 @@ public:
                         const Eigen::Vector3d& des_acc, double des_yaw, double des_yaw_dot,
                         const Eigen::Vector3d& kx, const Eigen::Vector3d& kv);
 
-  const Eigen::Vector3d& getComputedForce(void);
+  const Eigen::Vector3d& getComputedVelocity(void);
   const Eigen::Quaterniond& getComputedOrientation(void);
   double getComputedYawdot(void);
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -33,7 +33,6 @@ private:
   double yaw_;
 
   // Outputs of the controller
-  Eigen::Vector3d force_;
-  Eigen::Quaterniond orientation_;
+  Eigen::Vector3d velocity_;
 };
 

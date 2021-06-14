@@ -514,9 +514,8 @@ void MapROS::publishMapAll() {
   cloud1->height = 1;
   cloud1->is_dense = true;
   cloud1->header.frame_id = frame_id_;
-
-    sensor_msgs::PointCloud2Ptr cloud_msg(new sensor_msgs::PointCloud2);
-    pcl::toROSMsg(*cloud1, *cloud_msg);
+  sensor_msgs::PointCloud2Ptr cloud_msg(new sensor_msgs::PointCloud2);
+  pcl::toROSMsg(*cloud1, *cloud_msg);
   map_all_pub_.publish(cloud_msg);
 
   if(do_semantics_) {

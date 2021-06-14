@@ -55,14 +55,13 @@ private:
 void AirsimControllerNodelet::publishSO3Command(void) {
   controller_.calculateControl(des_pos_, des_vel_, des_acc_, des_yaw_, des_yaw_dot_, kx_, kv_);
 
-  const Eigen::Vector3d& force = controller_.getComputedForce();
-  const Eigen::Quaterniond& orientation = controller_.getComputedOrientation();
+  const Eigen::Vector3d& velocity = controller_.getComputedVelocity();
   const double yawdot = controller_.getComputedYawdot();
 
   airsim_ros_pkgs::VelCmd::Ptr velocityRequest(new airsim_ros_pkgs::VelCmd);  //! @note memory leak?
-  velocityRequest->twist.linear.x=force(1);
-  velocityRequest->twist.linear.y=force(0);
-  velocityRequest->twist.linear.z=-force(2);
+  velocityRequest->twist.linear.x=velocity(1);
+  velocityRequest->twist.linear.y=velocity(0);
+  velocityRequest->twist.linear.z=-velocity(2);
   velocityRequest->twist.angular.z=-yawdot;
 
   //velocityRequest->twist.angular.x=orientation.y();
