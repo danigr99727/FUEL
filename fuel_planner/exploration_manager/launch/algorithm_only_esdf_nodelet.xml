@@ -45,7 +45,7 @@
     <param name="sdf_map/p_max"  value="0.97"/>
     <param name="sdf_map/p_occ"  value="0.80"/>
     <param name="sdf_map/min_ray_length" value="0.5"/>
-    <param name="sdf_map/max_ray_length" value="5"/>
+    <param name="sdf_map/max_ray_length" value="4.5"/>
     <param name="sdf_map/virtual_ceil_height"   value="-10"/>
     <param name="sdf_map/optimistic" value="false" type="bool"/>
     <param name="sdf_map/signed_dist" value="false" type="bool"/>
@@ -54,9 +54,9 @@
     <param name="map_ros/cy" value="$(arg cy)"/>
     <param name="map_ros/fx" value="$(arg fx)"/>
     <param name="map_ros/fy" value="$(arg fy)"/>
-    <param name="map_ros/depth_filter_maxdist"   value="10.0"/>
-    <param name="map_ros/depth_filter_mindist"   value="0.1"/>
-    <param name="map_ros/depth_filter_margin"    value="0"/>
+    <param name="map_ros/depth_filter_maxdist"   value="6.0"/>
+    <param name="map_ros/depth_filter_mindist"   value="0.2"/>
+    <param name="map_ros/depth_filter_margin"    value="40"/>
     <param name="map_ros/k_depth_scaling_factor" value="1000.0"/>
     <param name="map_ros/skip_pixel" value="2"/>
     <param name="map_ros/esdf_slice_height" value="0.3"/>
